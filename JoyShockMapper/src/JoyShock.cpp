@@ -498,8 +498,8 @@ void JoyShock::handleTriggerChange(ButtonID softIndex, ButtonID fullIndex, Trigg
 		trigger_rumble.mode = AdaptiveTriggerMode::RESISTANCE_RAW;
 		trigger_rumble.force = 0;
 		trigger_rumble.start = offset + 0.05 * range;
-		_context->updateChordStack(position > 0, softIndex);
-		_context->updateChordStack(position >= 1.0, fullIndex);
+		handleButtonChange(softIndex, position > 0);
+		handleButtonChange(fullIndex, position >= 1.0);
 		return;
 	}
 	else if (mode == TriggerMode::X_RT)
@@ -509,8 +509,8 @@ void JoyShock::handleTriggerChange(ButtonID softIndex, ButtonID fullIndex, Trigg
 		trigger_rumble.mode = AdaptiveTriggerMode::RESISTANCE_RAW;
 		trigger_rumble.force = 0;
 		trigger_rumble.start = offset + 0.05 * range;
-		_context->updateChordStack(position > 0, softIndex);
-		_context->updateChordStack(position >= 1.0, fullIndex);
+		handleButtonChange(softIndex, position > 0);
+		handleButtonChange(fullIndex, position >= 1.0);
 		return;
 	}
 
