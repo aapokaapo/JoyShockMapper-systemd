@@ -63,7 +63,9 @@ const char *AUTOLOAD_FOLDER() {
 	const auto XDG_CONFIG_HOME = getenv("XDG_CONFIG_HOME");
 	if (XDG_CONFIG_HOME == nullptr)
 	{
-		directory = std::string{ getenv("HOME") } + "/.config";
+		const auto home = getenv("HOME");
+		// HOME may be unset when running as a systemd system service; fall back to /var/lib/joysockmapper
+		directory = (home != nullptr ? std::string{ home } : std::string{ "/var/lib/joysockmapper" }) + "/.config";
 	}
 	else
 	{
@@ -80,7 +82,9 @@ const char *GYRO_CONFIGS_FOLDER() {
 	const auto XDG_CONFIG_HOME = getenv("XDG_CONFIG_HOME");
 	if (XDG_CONFIG_HOME == nullptr)
 	{
-		directory = std::string{ getenv("HOME") } + "/.config";
+		const auto home = getenv("HOME");
+		// HOME may be unset when running as a systemd system service; fall back to /var/lib/joysockmapper
+		directory = (home != nullptr ? std::string{ home } : std::string{ "/var/lib/joysockmapper" }) + "/.config";
 	}
 	else
 	{
@@ -97,7 +101,9 @@ const char *BASE_JSM_CONFIG_FOLDER() {
 	const auto XDG_CONFIG_HOME = getenv("XDG_CONFIG_HOME");
 	if (XDG_CONFIG_HOME == nullptr)
 	{
-		directory = std::string{ getenv("HOME") } + "/.config";
+		const auto home = getenv("HOME");
+		// HOME may be unset when running as a systemd system service; fall back to /var/lib/joysockmapper
+		directory = (home != nullptr ? std::string{ home } : std::string{ "/var/lib/joysockmapper" }) + "/.config";
 	}
 	else
 	{

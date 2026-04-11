@@ -10,7 +10,7 @@ TrayIcon *TrayIcon::getNew(TrayIconData applicationName, std::function<void()> &
 }
 
 StatusNotifierItem::StatusNotifierItem(TrayIconData, std::function<void()> &&beforeShow)
-  : thread_{ [this, &beforeShow] {
+  : thread_{ [this, beforeShow = std::move(beforeShow)] {
 	  // Initialize GTK before creating any widgets
 	  int argc = 0;
 	  char **argv = nullptr;
