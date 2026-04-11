@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <array>
 #include <vector>
+#include <algorithm>
 
 namespace ExtendInput::DataTools::DualSense
 {

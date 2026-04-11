@@ -18,6 +18,29 @@
 class StatusNotifierItem : public TrayIcon
 {
 private:
+	// Context structures for passing data to g_idle_add callbacks
+	struct MenuItemAddContext
+	{
+		StatusNotifierItem *self;
+		std::string label;
+		ClickCallbackType onClick;
+	};
+
+	struct MenuItemAddCheckedContext
+	{
+		StatusNotifierItem *self;
+		std::string label;
+		ClickCallbackTypeChecked onClick;
+		StateCallbackType getState;
+	};
+
+	struct MenuItemAddSubContext
+	{
+		StatusNotifierItem *self;
+		std::string label;
+		std::string subLabel;
+		ClickCallbackType onClick;
+	};
 
 public:
 	using StringType = std::string;
@@ -52,4 +75,8 @@ private:
 	std::list<ClickCallbackType> callbacks_;
 
 	std::thread thread_;
+
+	friend struct MenuItemAddContext;
+	friend struct MenuItemAddCheckedContext;
+	friend struct MenuItemAddSubContext;
 };

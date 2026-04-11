@@ -406,16 +406,37 @@ public:
 	}
 
 	TOUCH_STATE GetTouchState(int deviceId, bool previous) override
-	{
-		TOUCH_STATE state;
-		memset(&state, 0, sizeof(TOUCH_STATE));
-		if (!SDL_GetGamepadTouchpadFinger(_controllerMap[deviceId]->_sdlController, 0, 0, &state.t0Down, &state.t0X, &state.t0Y, nullptr) || 
-			!SDL_GetGamepadTouchpadFinger(_controllerMap[deviceId]->_sdlController, 0, 1, &state.t1Down, &state.t1X, &state.t1Y, nullptr))
-		{
-			CERR << "Cannot get finger state: " << SDL_GetError() << '\n';
-		}
-		return state;
-	}
+        {
+            TOUCH_STATE state;
+            memset(&state, 0, sizeof(TOUCH_STATE));
+            
+            // Get the controller pointer
+            if (_controllerMap[deviceId] == nullptr)
+            {
+                return state;
+            }
+            
+            auto controller = _controllerMap[deviceId]->_sdlController;
+            
+            // Only try to read touchpad if the controller has touchpads
+            if (controller && SDL_GetNumGamepadTouchpads(controller) > 0)
+            {
+                if (!SDL_GetGamepadTouchpadFinger(controller, 0, 0, &state.t0Down, &state.t0X, &state.t0Y, nullptr) || 
+                    !SDL_GetGamepadTouchpadFinger(controller, 0, 1, &state.t1Down, &state.t1X, &state.t1Y, nullptr))
+                {
+                    // Only log once or at debug level to avoid spam
+                    static bool touched_error = false;
+                    if (!touched_error)
+                    {
+                        CERR << "Cannot get finger state: " << SDL_GetError() << '\n';
+                        touched_error = true;
+                    }
+                }
+            }
+            // If no touchpad, just return empty state silently
+            
+            return state;
+        }
 
 	bool GetTouchpadDimension(int deviceId, int &sizeX, int &sizeY) override
 	{

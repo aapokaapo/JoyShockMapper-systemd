@@ -2,6 +2,8 @@
 
 #include "JoyShockMapper.h"
 #include "PlatformDefinitions.h"
+#include <chrono>
+#include <ratio>
 
 struct Indicator
 {
