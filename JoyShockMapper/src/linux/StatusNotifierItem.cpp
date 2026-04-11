@@ -213,7 +213,7 @@ void StatusNotifierItem::AddMenuItem(const std::string &l, const std::string &sl
 
 		if (it == item->menuItems_.end())
 		{
-			item->menuItems_.emplace_back(GTK_MENU_ITEM(gtk_check_menu_item_new_with_label(labelCStr)));
+			item->menuItems_.emplace_back(GTK_MENU_ITEM(gtk_menu_item_new_with_label(labelCStr)));
 			menuItem = item->menuItems_.back();
 			gtk_container_add(GTK_CONTAINER(item->menu_.get()), GTK_WIDGET(menuItem));
 			gtk_widget_show_all(GTK_WIDGET(menuItem));
