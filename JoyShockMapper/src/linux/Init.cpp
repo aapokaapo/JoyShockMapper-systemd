@@ -1,16 +1,83 @@
 #include <algorithm>
 #include <string>
 #include <cstdio>
+#include <cstring>
+#include <atomic>
+#include <thread>
+#include <chrono>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sendfile.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
 #include <dirent.h>
 
 #include "InputHelpers.h"
+
+// Minimal sd_notify implementation that does not require libsystemd.
+// Sends a status string to the socket specified by the NOTIFY_SOCKET
+// environment variable (as described in sd_notify(3)).
+static void sd_notify_msg(const char *msg)
+{
+	const char *socket_path = ::getenv("NOTIFY_SOCKET");
+	if (socket_path == nullptr || socket_path[0] == '\0')
+		return;
+
+	int fd = ::socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	if (fd < 0)
+		return;
+
+	struct sockaddr_un addr{};
+	addr.sun_family = AF_UNIX;
+	// NOTIFY_SOCKET may be an abstract socket (starting with '@')
+	if (socket_path[0] == '@')
+	{
+		addr.sun_path[0] = '\0';
+		::strncpy(addr.sun_path + 1, socket_path + 1, sizeof(addr.sun_path) - 2);
+		addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
+	}
+	else
+	{
+		::strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path) - 1);
+		addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
+	}
+
+	::sendto(fd, msg, ::strlen(msg), MSG_NOSIGNAL,
+	         reinterpret_cast<const struct sockaddr *>(&addr), sizeof(addr));
+	::close(fd);
+}
+
+static std::atomic<bool> g_watchdog_running{ false };
+
+// Start a background thread that sends systemd watchdog keepalives.
+// The interval is half of WATCHDOG_USEC to guarantee at least one ping
+// per watchdog period.
+static void start_watchdog()
+{
+	const char *watchdog_usec = ::getenv("WATCHDOG_USEC");
+	if (watchdog_usec == nullptr || watchdog_usec[0] == '\0')
+		return;
+
+	unsigned long usec = 0;
+	try { usec = std::stoul(watchdog_usec); }
+	catch (...) { return; }
+	if (usec == 0)
+		return;
+
+	g_watchdog_running = true;
+	auto interval = std::chrono::microseconds(usec / 2);
+	std::thread([interval]() {
+		while (g_watchdog_running.load())
+		{
+			sd_notify_msg("WATCHDOG=1");
+			std::this_thread::sleep_for(interval);
+		}
+	}).detach();
+}
 
 static void terminateHandler(int signo)
 {
@@ -20,7 +87,15 @@ static void terminateHandler(int signo)
 		return;
 	}
 
+	sd_notify_msg("STOPPING=1");
+	g_watchdog_running = false;
 	WriteToConsole("QUIT");
+}
+
+static void reloadHandler(int /*signo*/)
+{
+	// SIGHUP: reconnect all physical controllers and recreate virtual devices
+	WriteToConsole("RECONNECT_CONTROLLERS");
 }
 
 static const int initialize = [] {
@@ -87,6 +162,10 @@ static const int initialize = [] {
 
 	signal(SIGTERM, &terminateHandler);
 	signal(SIGINT, &terminateHandler);
+	signal(SIGHUP, &reloadHandler);
+
+	start_watchdog();
+	sd_notify_msg("READY=1");
 
 	return 0;
 }();
