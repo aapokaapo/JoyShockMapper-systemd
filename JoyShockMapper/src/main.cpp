@@ -1507,7 +1507,7 @@ void beforeShowTrayMenu()
 		string autoloadFolder{ AUTOLOAD_FOLDER() };
 		for (auto file : ListDirectory(autoloadFolder.c_str()))
 		{
-			std::filesystem::path fullPath = std::filesystem::path("AutoLoad") / file;
+			std::filesystem::path fullPath = std::filesystem::path(autoloadFolder) / file;
 			auto fullPathName = std::make_shared<string>(fullPath.string());
 			auto noext = file.substr(0, file.find_last_of('.'));
 			tray->AddMenuItem(U("AutoLoad folder"), UnicodeString(noext.begin(), noext.end()), [fullPathName]
@@ -1519,7 +1519,7 @@ void beforeShowTrayMenu()
 		string gyroConfigsFolder{ GYRO_CONFIGS_FOLDER() };
 		for (auto file : ListDirectory(gyroConfigsFolder.c_str()))
 		{
-			std::filesystem::path fullPath = std::filesystem::path("GyroConfigs") / file;
+			std::filesystem::path fullPath = std::filesystem::path(gyroConfigsFolder) / file;
 			auto fullPathName = std::make_shared<string>(fullPath.string());
 			auto noext = file.substr(0, file.find_last_of('.'));
 			tray->AddMenuItem(U("GyroConfigs folder"), UnicodeString(noext.begin(), noext.end()), [fullPathName]
@@ -2820,7 +2820,7 @@ int main(int argc, char *argv[])
 #if _WIN32
 		string arg(&argv[i][0], &argv[i][wcslen(argv[i])]);
 #else
-		string arg = string(argv[0]);
+		string arg = string(argv[i]);
 #endif
 		if (filesystem::is_directory(filesystem::status(arg)) &&
 		  SettingsManager::getV<PathString>(SettingID::JSM_DIRECTORY)->set(arg).compare(arg) == 0)
@@ -2919,7 +2919,7 @@ int main(int argc, char *argv[])
 #if _WIN32
 		string arg(&argv[i][0], &argv[i][wcslen(argv[i])]);
 #else
-		string arg = string(argv[0]);
+		string arg = string(argv[i]);
 #endif
 		if (filesystem::is_regular_file(filesystem::status(arg)) && arg != module)
 		{
