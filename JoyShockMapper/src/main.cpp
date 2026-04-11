@@ -1508,23 +1508,25 @@ void beforeShowTrayMenu()
 		for (auto file : ListDirectory(autoloadFolder.c_str()))
 		{
 			std::filesystem::path fullPath = std::filesystem::path("AutoLoad") / file;
-			string fullPathName = fullPath.string();
+			auto fullPathName = std::make_shared<string>(fullPath.string());
 			auto noext = file.substr(0, file.find_last_of('.'));
 			tray->AddMenuItem(U("AutoLoad folder"), UnicodeString(noext.begin(), noext.end()), [fullPathName]
 			  {
-				WriteToConsole(string(fullPathName.begin(), fullPathName.end()));
-				autoLoadThread->Stop(); });
+				WriteToConsole(*fullPathName);
+				if (autoLoadThread)
+					autoLoadThread->Stop(); });
 		}
 		string gyroConfigsFolder{ GYRO_CONFIGS_FOLDER() };
 		for (auto file : ListDirectory(gyroConfigsFolder.c_str()))
 		{
 			std::filesystem::path fullPath = std::filesystem::path("GyroConfigs") / file;
-			string fullPathName = fullPath.string();
+			auto fullPathName = std::make_shared<string>(fullPath.string());
 			auto noext = file.substr(0, file.find_last_of('.'));
 			tray->AddMenuItem(U("GyroConfigs folder"), UnicodeString(noext.begin(), noext.end()), [fullPathName]
 			  {
-				WriteToConsole(string(fullPathName.begin(), fullPathName.end()));
-				autoLoadThread->Stop(); });
+				WriteToConsole(*fullPathName);
+				if (autoLoadThread)
+					autoLoadThread->Stop(); });
 		}
 		tray->AddMenuItem(U("Calculate RWC"), []()
 		  {
