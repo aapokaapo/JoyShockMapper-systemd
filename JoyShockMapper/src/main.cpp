@@ -1544,7 +1544,9 @@ void beforeShowTrayMenu()
 				  UnhideConsole(); },
 		  bind(&PollingThread::isRunning, minimizeThread.get()));
 		tray->AddMenuItem(U("Reset All Configs"), []()
-		  { WriteToConsole("RESET_MAPPINGS"); });
+		  {
+			WriteToConsole("RESET_MAPPINGS");
+			beforeShowTrayMenu(); });
 		tray->AddMenuItem(U("Quit"), []()
 		  { WriteToConsole("QUIT"); });
 	}
