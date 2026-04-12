@@ -47,6 +47,16 @@ if (UNIX AND NOT APPLE)
         FILES ${PROJECT_SOURCE_DIR}/dist/linux/50-joyshockmapper.rules
         DESTINATION lib/udev/rules.d
     )
+    
+    install (
+        FILES ${PROJECT_SOURCE_DIR}/dist/linux/50-sony-gamepad.rules
+        DESTINATION lib/udev/rules.d
+    )
+    
+    install (
+        FILES ${PROJECT_SOURCE_DIR}/dist/linux/99-disable-gamepad-touchpad-mouse.rules
+        DESTINATION lib/udev/rules.d
+    )
 
     install (
         FILES ${PROJECT_SOURCE_DIR}/JoyShockMapper/gyro_icon.png
