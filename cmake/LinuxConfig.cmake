@@ -41,6 +41,18 @@ if (UNIX AND NOT APPLE)
         )
     endif ()
 
+    # Release-only: enable fast floating-point math and SSE4.2 SIMD intrinsics.
+    # -ffast-math enables aggressive floating-point optimisations (e.g. reassociation,
+    # reciprocal approximation) that are safe for game-pad processing but may break
+    # IEEE-754 edge cases.  Remove or restrict these flags if strict FP accuracy is needed.
+    if (CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_compile_options (
+            platform_dependencies INTERFACE
+            -ffast-math
+            -msse4.2
+        )
+    endif ()
+
     add_library (Platform::Dependencies ALIAS platform_dependencies)
 
     install (

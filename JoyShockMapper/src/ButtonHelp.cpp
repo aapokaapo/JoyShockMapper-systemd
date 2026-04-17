@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <JoyShockMapper.h>
+#include <unordered_map>
 
 const map<ButtonID, string> buttonHelpMap{
 	{ ButtonID::UP, "Up on the d-pad" },
@@ -53,7 +54,7 @@ const map<ButtonID, string> buttonHelpMap{
 	{ ButtonID::TRING, "Touch ring binding, either inner or outer." },
 };
 
-map<int, ButtonID> nnm = { 
+unordered_map<int, ButtonID> nnm = { 
 	{22, ButtonID::HOME},
 	{6, ButtonID::DOWN},
 	{10, ButtonID::LEFT},

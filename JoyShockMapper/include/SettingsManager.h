@@ -46,4 +46,4 @@ private:
 	static SettingsMap _settings;
 };
 
-extern map<int, ButtonID> nnm;
+extern unordered_map<int, ButtonID> nnm;

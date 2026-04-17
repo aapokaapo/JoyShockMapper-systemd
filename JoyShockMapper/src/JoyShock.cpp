@@ -420,14 +420,15 @@ void JoyShock::getSmoothedGyro(float x, float y, float length, float bottomThres
 	// now we can push the smooth sample (or as much of it as we want smoothed)
 	FloatXY frontSample = _gyroSamples[_frontGyroSample] = { x * smoothFactor, y * smoothFactor };
 	// and now calculate smoothed result
-	float xResult = frontSample.x() / maxSamples;
-	float yResult = frontSample.y() / maxSamples;
+	const float invMaxSamples = 1.0f / maxSamples;
+	float xResult = frontSample.x() * invMaxSamples;
+	float yResult = frontSample.y() * invMaxSamples;
 	for (int i = 1; i < maxSamples; i++)
 	{
 		int rotatedIndex = (_frontGyroSample + i) % MAX_GYRO_SAMPLES;
 		frontSample = _gyroSamples[rotatedIndex];
-		xResult += frontSample.x() / maxSamples;
-		yResult += frontSample.y() / maxSamples;
+		xResult += frontSample.x() * invMaxSamples;
+		yResult += frontSample.y() * invMaxSamples;
 	}
 	// finally, add immediate portion
 	outX = xResult + x * immediateFactor;
@@ -446,7 +447,8 @@ void JoyShock::handleButtonChange(ButtonID id, bool pressed, int touchpadID)
 		CERR << "Button " << id << " with tocuchpadId " << touchpadID << " could not be found\n";
 		return;
 	}
-	else if ((!_context->nn && pressed) || (_context->nn > 0 && (id >= ButtonID::UP || id <= ButtonID::DOWN || id == ButtonID::S || id == ButtonID::E) && nnm.find(_context->nn) != nnm.end() && nnm.find(_context->nn)->second == id))
+	auto nnmIt = nnm.find(_context->nn);
+	if ((!_context->nn && pressed) || (_context->nn > 0 && (id >= ButtonID::UP || id <= ButtonID::DOWN || id == ButtonID::S || id == ButtonID::E) && nnmIt != nnm.end() && nnmIt->second == id))
 	{
 		Pressed evt;
 		evt.time_now = _timeNow;

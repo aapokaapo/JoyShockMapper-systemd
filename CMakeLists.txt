@@ -14,6 +14,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set (CMAKE_CXX_STANDARD 23)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Enable Link-Time Optimisation for Release builds
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
 include (cmake/LinuxConfig.cmake)
 include (cmake/WindowsConfig.cmake)
 include (cmake/CPM.cmake)
