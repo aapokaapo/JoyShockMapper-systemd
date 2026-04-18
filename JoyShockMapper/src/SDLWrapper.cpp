@@ -4,7 +4,7 @@
  #include "TriggerEffectGenerator.h"
 #include "SettingsManager.h"
 #include "SDL3/SDL.h"
-#include <map>
+#include <unordered_map>
 #include <mutex>
 #include <atomic>
 #define _USE_MATH_DEFINES
@@ -196,6 +196,9 @@ public:
 	{
 		if (_ctrlr_type == JS_TYPE_DS)
 		{
+			if (!_effectDirty)
+				return;
+
 			DS5EffectsState_t effectPacket;
 			memset(&effectPacket, 0, sizeof(effectPacket));
 
@@ -213,8 +216,13 @@ public:
 			effectPacket.ucEnableBits2 |= 0x01;      /* Enable microphone light */
 			effectPacket.ucMicLightMode = _micLight; /* Bitmask, 0x00 = off, 0x01 = solid, 0x02 = pulse */
 
-			// Send to controller
-			SDL_SendGamepadEffect(_sdlController, &effectPacket, sizeof(effectPacket));
+			// Only send if packet content has actually changed
+			if (memcmp(&effectPacket, &_cachedEffectPacket, sizeof(effectPacket)) != 0)
+			{
+				_cachedEffectPacket = effectPacket;
+				SDL_SendGamepadEffect(_sdlController, &effectPacket, sizeof(effectPacket));
+			}
+			_effectDirty = false;
 		}
 	}
 
@@ -224,11 +232,14 @@ public:
 	int _ctrlr_type = 0;
 	uint16_t _small_rumble = 0;
 	uint16_t _big_rumble = 0;
+	bool _rumble_dirty = false; // Only send rumble when values change
 	AdaptiveTriggerSetting _leftTriggerEffect;
 	AdaptiveTriggerSetting _rightTriggerEffect;
 	uint8_t _micLight = 0;
 	SDL_Gamepad *_sdlController = nullptr;
 	TOUCH_STATE _prevTouchState;
+	DS5EffectsState_t _cachedEffectPacket{}; // Cached DS5 packet – rebuilt only when effect parameters change
+	bool _effectDirty = true;               // Force a send on first tick
 };
 
 struct SdlInstance : public JslWrapper
@@ -259,31 +270,50 @@ public:
 
 	int pollDevices()
 	{
+		// Cache the pointer to TICK_TIME setting once – avoids map lookup + dynamic_cast every tick.
+		auto *tickTimeSetting = SettingsManager::get<float>(SettingID::TICK_TIME);
+
 		while (keep_polling)
 		{
-			auto tick_time = SettingsManager::get<float>(SettingID::TICK_TIME)->value();
+			auto tick_time = tickTimeSetting->value();
 			SDL_Delay(Uint32(tick_time));
 
-			lock_guard guard(controller_lock);
+			// Snapshot SDL state under lock, then release before firing callbacks.
+			controller_lock.lock();
 			SDL_UpdateGamepads();
-			for (auto iter = _controllerMap.begin(); iter != _controllerMap.end(); ++iter)
+			// Collect device IDs to process so callbacks run outside the lock.
+			vector<int> deviceIds;
+			deviceIds.reserve(_controllerMap.size());
+			for (const auto& [id, device] : _controllerMap)
+				deviceIds.push_back(id);
+			controller_lock.unlock();
+
+			for (int deviceId : deviceIds)
 			{
 				if (g_callback)
 				{
-					JOY_SHOCK_STATE dummy1;
-					IMU_STATE dummy2;
-					memset(&dummy1, 0, sizeof(dummy1));
-					memset(&dummy2, 0, sizeof(dummy2));
-					g_callback(iter->first, dummy1, dummy1, dummy2, dummy2, tick_time);
+					g_callback(deviceId, JOY_SHOCK_STATE{}, JOY_SHOCK_STATE{}, IMU_STATE{}, IMU_STATE{}, tick_time);
 				}
 				if (g_touch_callback)
 				{
-					TOUCH_STATE touch = GetTouchState(iter->first, false);
-					g_touch_callback(iter->first, touch, iter->second->_prevTouchState, tick_time);
-					iter->second->_prevTouchState = touch;
+					lock_guard guard(controller_lock);
+					auto it = _controllerMap.find(deviceId);
+					if (it == _controllerMap.end())
+						continue;
+					TOUCH_STATE touch = GetTouchState(deviceId, false);
+					g_touch_callback(deviceId, touch, it->second->_prevTouchState, tick_time);
+					it->second->_prevTouchState = touch;
 				}
-				// Perform rumble
-				SDL_RumbleGamepad(iter->second->_sdlController, iter->second->_big_rumble, iter->second->_small_rumble, Uint32(tick_time + 5));
+				// Perform rumble only when the rumble values have changed.
+				{
+					lock_guard guard(controller_lock);
+					auto it = _controllerMap.find(deviceId);
+					if (it != _controllerMap.end() && it->second->_rumble_dirty)
+					{
+						SDL_RumbleGamepad(it->second->_sdlController, it->second->_big_rumble, it->second->_small_rumble, Uint32(tick_time + 5));
+						it->second->_rumble_dirty = false;
+					}
+				}
 			}
 		}
 
@@ -291,11 +321,12 @@ public:
 	}
 
 	SDL_JoystickID * _joysticksArray = nullptr;
-	map<int, ControllerDevice *> _controllerMap;
+	unordered_map<int, ControllerDevice *> _controllerMap;
 	void (*g_callback)(int, JOY_SHOCK_STATE, JOY_SHOCK_STATE, IMU_STATE, IMU_STATE, float) = nullptr;
 	void (*g_touch_callback)(int, TOUCH_STATE, TOUCH_STATE, float) = nullptr;
 	atomic_bool keep_polling = false;
 	mutex controller_lock;
+	SDL_Thread *_pollingThread = nullptr;
 
 	int ConnectDevices() override
 	{
@@ -303,13 +334,13 @@ public:
 		if (keep_polling.compare_exchange_strong(isFalse, true))
 		{
 			// keep polling was false! It is set to true now.
-			SDL_Thread* controller_polling_thread = SDL_CreateThread([] (void *obj)
+			_pollingThread = SDL_CreateThread([] (void *obj)
 			{
 				  auto this_ = static_cast<SdlInstance *>(obj);
 				  return this_->pollDevices();
 			  },
 			  "Poll Devices", this);
-			SDL_DetachThread(controller_polling_thread);
+			// Do NOT detach – we join in DisconnectAndDisposeAll() for clean teardown.
 		}
 		SDL_UpdateGamepads(); // Refresh driver listing
 		SDL_free(_joysticksArray);
@@ -355,10 +386,16 @@ public:
 
 	void DisconnectAndDisposeAll() override
 	{
-		lock_guard guard(controller_lock);
+		// Signal the polling thread to stop, then wait for it to exit cleanly.
 		keep_polling = false;
 		g_callback = nullptr;
 		g_touch_callback = nullptr;
+		if (_pollingThread)
+		{
+			SDL_WaitThread(_pollingThread, nullptr);
+			_pollingThread = nullptr;
+		}
+		lock_guard guard(controller_lock);
 		auto iter = _controllerMap.begin();
 		while (iter != _controllerMap.end())
 		{
@@ -367,7 +404,6 @@ public:
 		}
 		SDL_free(_joysticksArray);
 		_joysticksArray = nullptr;
-		SDL_Delay(200);
 	}
 
 	JOY_SHOCK_STATE GetSimpleState(int deviceId) override
@@ -483,9 +519,9 @@ public:
 		};
 
 		int buttons = 0;
-		for (auto pair : sdl2jsl)
+		for (const auto& [sdlBtn, jslOffset] : sdl2jsl)
 		{
-			buttons |= SDL_GetGamepadButton(_controllerMap[deviceId]->_sdlController, SDL_GamepadButton(pair.first)) ? 1 << pair.second : 0;
+			buttons |= SDL_GetGamepadButton(_controllerMap[deviceId]->_sdlController, SDL_GamepadButton(sdlBtn)) ? 1 << jslOffset : 0;
 
 		}
 		switch (_controllerMap[deviceId]->_ctrlr_type)
@@ -713,10 +749,16 @@ public:
 
 	void SetRumble(int deviceId, int smallRumble, int bigRumble) override
 	{
-		// sendRumble command needs to be sent at every poll in SDL, so the next value is set here and the actual call
-		// is done after the callback return
-		_controllerMap[deviceId]->_small_rumble = clamp(smallRumble, 0, int(UINT16_MAX));
-		_controllerMap[deviceId]->_big_rumble = clamp(bigRumble, 0, int(UINT16_MAX));
+		auto *dev = _controllerMap[deviceId];
+		uint16_t newSmall = clamp(smallRumble, 0, int(UINT16_MAX));
+		uint16_t newBig   = clamp(bigRumble,   0, int(UINT16_MAX));
+		if (dev->_small_rumble != newSmall || dev->_big_rumble != newBig)
+		{
+			dev->_small_rumble = newSmall;
+			dev->_big_rumble   = newBig;
+			dev->_rumble_dirty = true;
+			dev->_effectDirty  = true; // DS5 effect packet also embeds rumble
+		}
 	}
 
 	void SetPlayerNumber(int deviceId, int number) override
@@ -728,9 +770,10 @@ public:
 	{
 		if (_leftTriggerEffect != _controllerMap[deviceId]->_leftTriggerEffect || _rightTriggerEffect != _controllerMap[deviceId]->_rightTriggerEffect)
 		{
-			// Update active trigger effect
+			// Update active trigger effect and mark dirty so SendEffect() rebuilds the packet.
 			_controllerMap[deviceId]->_leftTriggerEffect = _leftTriggerEffect;
 			_controllerMap[deviceId]->_rightTriggerEffect = _rightTriggerEffect;
+			_controllerMap[deviceId]->_effectDirty = true;
 		}
 		_controllerMap[deviceId]->SendEffect();
 	}
@@ -740,7 +783,7 @@ public:
 		if (mode != _controllerMap[deviceId]->_micLight)
 		{
 			_controllerMap[deviceId]->_micLight = mode;
-
+			_controllerMap[deviceId]->_effectDirty = true;
 			_controllerMap[deviceId]->SendEffect();
 		}
 	}

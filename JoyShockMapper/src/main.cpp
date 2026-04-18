@@ -346,7 +346,7 @@ void calibrateTriggers(shared_ptr<JoyShock> jc)
 void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE lastState, IMU_STATE imuState, IMU_STATE lastImuState, float deltaTime)
 {
 
-	shared_ptr<JoyShock> jc = handle_to_joyshock[jcHandle];
+	const auto& jc = handle_to_joyshock[jcHandle];
 	if (jc == nullptr)
 		return;
 	jc->_context->callback_lock.lock();
@@ -366,13 +366,16 @@ void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE l
 
 	IMU_STATE imu = jsl->GetIMUState(jc->_handle);
 
-	if (SettingsManager::getV<Switch>(SettingID::AUTO_CALIBRATE_GYRO)->value() == Switch::ON)
 	{
-		motion.SetAutoCalibration(true, 1.2f, 0.015f);
-	}
-	else
-	{
-		motion.SetAutoCalibration(false, 0.f, 0.f);
+		bool autoCalibrate = SettingsManager::getV<Switch>(SettingID::AUTO_CALIBRATE_GYRO)->value() == Switch::ON;
+		if (!jc->_lastAutoCalibrate.has_value() || autoCalibrate != *jc->_lastAutoCalibrate)
+		{
+			jc->_lastAutoCalibrate = autoCalibrate;
+			if (autoCalibrate)
+				motion.SetAutoCalibration(true, 1.2f, 0.015f);
+			else
+				motion.SetAutoCalibration(false, 0.f, 0.f);
+		}
 	}
 	motion.ProcessMotion(imu.gyroX, imu.gyroY, imu.gyroZ, imu.accelX, imu.accelY, imu.accelZ, deltaTime);
 
@@ -387,7 +390,7 @@ void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE l
 
 	//// These are for sanity checking sensor fusion against a simple complementary filter:
 	// float angle = sqrtf(inGyroX * inGyroX + inGyroY * inGyroY + inGyroZ * inGyroZ) * PI / 180.f * deltaTime;
-	Vec normAxis = Vec(-inGyroX, -inGyroY, -inGyroZ).Normalized();
+	// Vec normAxis = Vec(-inGyroX, -inGyroY, -inGyroZ).Normalized();
 	// Quat reverseRotation = Quat(cosf(angle * 0.5f), normAxis.x, normAxis.y, normAxis.z);
 	// reverseRotation.Normalize();
 	// jc->_lastGrav *= reverseRotation;
@@ -489,6 +492,8 @@ void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE l
 
 		if (gyroSpace == GyroSpace::PLAYER_TURN || gyroSpace == GyroSpace::PLAYER_LEAN)
 		{
+			// Cache the YZ gyro length, used in both PLAYER_TURN and PLAYER_LEAN branches.
+			const float inGyroYZLen = sqrtf(inGyroY * inGyroY + inGyroZ * inGyroZ);
 			if (gyroSpace == GyroSpace::PLAYER_TURN)
 			{
 				// grav dot gyro axis (but only Y (yaw) and Z (roll))
@@ -497,7 +502,7 @@ void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE l
 				const float yawRelaxFactor = 2.f; // 60 degree buffer
 				// const float yawRelaxFactor = 1.41f; // 45 degree buffer
 				// const float yawRelaxFactor = 1.15f; // 30 degree buffer
-				gyroX += worldYawSign * min(abs(worldYaw) * yawRelaxFactor, sqrtf(inGyroY * inGyroY + inGyroZ * inGyroZ));
+				gyroX += worldYawSign * min(abs(worldYaw) * yawRelaxFactor, inGyroYZLen);
 			}
 			else // PLAYER_LEAN
 			{
@@ -531,7 +536,7 @@ void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE l
 						// const float rollRelaxFactor = 2.f; // 60 degree buffer
 						const float rollRelaxFactor = 1.41f; // 45 degree buffer
 						// const float rollRelaxFactor = 1.15f; // 30 degree buffer
-						gyroX += worldRollSign * min(abs(worldRoll) * rollRelaxFactor, sqrtf(inGyroY * inGyroY + inGyroZ * inGyroZ));
+						gyroX += worldRollSign * min(abs(worldRoll) * rollRelaxFactor, inGyroYZLen);
 						gyroX *= sideReduction;
 					}
 				}
@@ -722,28 +727,31 @@ void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE l
 	}
 	break;
 	}
-	float gyro_x_sign_to_use = jc->getSetting(SettingID::GYRO_AXIS_X);
-	float gyro_y_sign_to_use = jc->getSetting(SettingID::GYRO_AXIS_Y);
+	// Cache gyro axis signs once – reused both as defaults and when applying modifiers.
+	const float gyro_x_sign_base = jc->getSetting(SettingID::GYRO_AXIS_X);
+	const float gyro_y_sign_base = jc->getSetting(SettingID::GYRO_AXIS_Y);
+	float gyro_x_sign_to_use = gyro_x_sign_base;
+	float gyro_y_sign_to_use = gyro_y_sign_base;
 
 	bool trackball_x_pressed = false;
 	bool trackball_y_pressed = false;
 
 	// Apply gyro modifiers in the queue from oldest to newest (thus giving priority to most recent)
-	for (auto pair : jc->_context->gyroActionQueue)
+	for (const auto& pair : jc->_context->gyroActionQueue)
 	{
 		if (pair.second.code == GYRO_ON_BIND)
 			blockGyro = false;
 		else if (pair.second.code == GYRO_OFF_BIND)
 			blockGyro = true;
 		else if (pair.second.code == GYRO_INV_X)
-			gyro_x_sign_to_use = jc->getSetting(SettingID::GYRO_AXIS_X) * -1; // Intentionally don't support multiple inversions
+			gyro_x_sign_to_use = gyro_x_sign_base * -1; // Intentionally don't support multiple inversions
 		else if (pair.second.code == GYRO_INV_Y)
-			gyro_y_sign_to_use = jc->getSetting(SettingID::GYRO_AXIS_Y) * -1; // Intentionally don't support multiple inversions
+			gyro_y_sign_to_use = gyro_y_sign_base * -1; // Intentionally don't support multiple inversions
 		else if (pair.second.code == GYRO_INVERT)
 		{
 			// Intentionally don't support multiple inversions
-			gyro_x_sign_to_use = jc->getSetting(SettingID::GYRO_AXIS_X) * -1;
-			gyro_y_sign_to_use = jc->getSetting(SettingID::GYRO_AXIS_Y) * -1;
+			gyro_x_sign_to_use = gyro_x_sign_base * -1;
+			gyro_y_sign_to_use = gyro_y_sign_base * -1;
 		}
 		else if (pair.second.code == GYRO_TRACK_X)
 			trackball_x_pressed = true;
