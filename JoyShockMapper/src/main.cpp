@@ -1862,10 +1862,11 @@ ControllerScheme updateVirtualController(ControllerScheme prevScheme, Controller
 		else
 		{
 #ifdef __linux__
+			const char *schemeCmd = (nextScheme == ControllerScheme::XBOX) ? "XBOX" : "DS4";
 			LinuxNotifications::sendNotification("JoyShockMapper",
 			  string("Virtual ") + schemeName + " controller initialization failed",
 			  LinuxNotifications::Urgency::Critical, 7000,
-			  { { "retry", "Retry", string("VIRTUAL_CONTROLLER = ") + (nextScheme == ControllerScheme::XBOX ? "XBOX" : "DS4") } });
+			  { { "retry", "Retry", string("VIRTUAL_CONTROLLER = ") + schemeCmd } });
 #else
 			if (tray)
 				tray->SendNotification(string("Virtual ") + schemeName + " controller initialization failed");
