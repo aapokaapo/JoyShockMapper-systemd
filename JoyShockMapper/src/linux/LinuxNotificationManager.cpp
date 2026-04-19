@@ -1,12 +1,38 @@
 #include "linux/LinuxNotificationManager.h"
 
-#ifdef HAVE_GIO_NOTIFICATIONS
+#ifdef HAVE_LIBNOTIFY
 
-#include <gio/gio.h>
+#include <libnotify/notify.h>
 #include <iostream>
+#include <mutex>
 
 namespace LinuxNotifications
 {
+
+namespace
+{
+
+// Ensure notify_init() is called exactly once across all threads.
+void ensure_initialized()
+{
+	static std::once_flag flag;
+	std::call_once(flag, []() {
+		notify_init("JoyShockMapper");
+	});
+}
+
+// Callback for notification dismiss action.
+// Does nothing – its mere presence tells GNOME 49+ that the action was
+// handled locally, which prevents the startup-notification spinner from
+// appearing when the user clicks a desktop notification.
+static void on_notification_action(NotifyNotification * /*notification*/,
+                                   char * /*action*/,
+                                   gpointer /*user_data*/)
+{
+	// Intentionally empty – acknowledges the action immediately.
+}
+
+} // anonymous namespace
 
 bool sendNotification(
   const std::string &summary,
@@ -14,78 +40,45 @@ bool sendNotification(
   Urgency urgency,
   int expireTimeoutMs)
 {
+	ensure_initialized();
+
+	NotifyNotification *notification = notify_notification_new(
+	  summary.c_str(),
+	  body.empty() ? nullptr : body.c_str(),
+	  "jsm-status-dark");
+
+	if (!notification)
+	{
+		std::cerr << "[Notifications] Failed to create notification\n";
+		return false;
+	}
+
+	notify_notification_set_urgency(notification, static_cast<NotifyUrgency>(urgency));
+	notify_notification_set_timeout(notification, expireTimeoutMs);
+
+	// Add a "default" action with an explicit (empty) callback.
+	// Without this, GNOME 49+ shows a startup-notification spinner while
+	// waiting for an action acknowledgement after the user clicks.
+	notify_notification_add_action(
+	  notification,
+	  "default",
+	  "Dismiss",
+	  on_notification_action,
+	  nullptr,  // user data
+	  nullptr); // free function
+
 	GError *error = nullptr;
-
-	GDBusConnection *conn = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
-	if (!conn)
+	bool ok = notify_notification_show(notification, &error);
+	if (!ok && error)
 	{
-		if (error)
-		{
-			std::cerr << "[Notifications] Cannot connect to session bus: " << error->message << '\n';
-			g_error_free(error);
-		}
-		return false;
+		std::cerr << "[Notifications] Failed to show notification: " << error->message << '\n';
+		g_error_free(error);
 	}
 
-	// Build the hints dictionary containing urgency level
-	GVariantBuilder hintsBuilder;
-	g_variant_builder_init(&hintsBuilder, G_VARIANT_TYPE("a{sv}"));
-	g_variant_builder_add(&hintsBuilder, "{sv}", "urgency",
-	  g_variant_new_byte(static_cast<guint8>(urgency)));
-
-	// Actions array with a "default" action to prevent GNOME from launching the app on click.
-	// When the actions list is empty, GNOME 49+ treats a notification click as a request to
-	// activate the application's default action (i.e. launch it).  Adding a "default" action
-	// tells the notification server what to do on click (dismiss) without executing any code.
-	// Actions are specified as alternating (action-id, label) string pairs per the spec.
-	GVariantBuilder actionsBuilder;
-	g_variant_builder_init(&actionsBuilder, G_VARIANT_TYPE("as"));
-	g_variant_builder_add(&actionsBuilder, "s", "default"); // action ID recognised by GNOME
-	g_variant_builder_add(&actionsBuilder, "s", "Dismiss"); // human-readable label (display is server-dependent)
-
-	// org.freedesktop.Notifications.Notify signature:
-	// (STRING app_name, UINT32 replaces_id, STRING app_icon,
-	//  STRING summary, STRING body, ARRAY actions, DICT hints, INT32 expire_timeout)
-	GVariant *params = g_variant_new(
-	  "(susssasa{sv}i)",
-	  "JoyShockMapper",        // app_name
-	  static_cast<guint32>(0), // replaces_id (0 = new notification)
-	  "jsm-status-dark",       // app_icon
-	  summary.c_str(),         // summary
-	  body.c_str(),            // body
-	  &actionsBuilder,         // actions
-	  &hintsBuilder,           // hints
-	  expireTimeoutMs);        // expire_timeout (-1 = server default)
-
-	GVariant *result = g_dbus_connection_call_sync(
-	  conn,
-	  "org.freedesktop.Notifications",
-	  "/org/freedesktop/Notifications",
-	  "org.freedesktop.Notifications",
-	  "Notify",
-	  params,
-	  G_VARIANT_TYPE("(u)"),
-	  G_DBUS_CALL_FLAGS_NONE,
-	  -1,
-	  nullptr,
-	  &error);
-
-	g_object_unref(conn);
-
-	if (!result)
-	{
-		if (error)
-		{
-			std::cerr << "[Notifications] D-Bus Notify failed: " << error->message << '\n';
-			g_error_free(error);
-		}
-		return false;
-	}
-
-	g_variant_unref(result);
-	return true;
+	g_object_unref(notification);
+	return ok;
 }
 
 } // namespace LinuxNotifications
 
-#endif // HAVE_GIO_NOTIFICATIONS
+#endif // HAVE_LIBNOTIFY

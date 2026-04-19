@@ -17,19 +17,20 @@ enum class Urgency
 // Default notification timeout in milliseconds.
 static constexpr int kDefaultExpireMs = 7000;
 
-#ifdef HAVE_GIO_NOTIFICATIONS
-// Send a desktop notification via the org.freedesktop.Notifications D-Bus interface.
-// Returns true on success, false if the notification service is unavailable or an
-// error occurs (failure is non-fatal; the caller should not abort on false).
-// A "default" action is included so that GNOME 49+ dismisses the notification on
-// click rather than trying to launch the application.
+#ifdef HAVE_LIBNOTIFY
+// Send a desktop notification via libnotify.
+// Returns true on success, false if libnotify is unavailable or an error
+// occurs (failure is non-fatal; the caller should not abort on false).
+// A "default" action is included with an explicit (empty) callback so that
+// GNOME 49+ dismisses the notification on click without showing a
+// startup-notification spinner.
 bool sendNotification(
   const std::string &summary,
   const std::string &body = "",
   Urgency urgency = Urgency::Normal,
   int expireTimeoutMs = kDefaultExpireMs);
 #else
-// GIO/D-Bus unavailable at build time – notifications silently disabled.
+// libnotify unavailable at build time – notifications silently disabled.
 inline bool sendNotification(
   const std::string & /*summary*/,
   const std::string & /*body*/ = "",
@@ -38,7 +39,7 @@ inline bool sendNotification(
 {
 	return false;
 }
-#endif // HAVE_GIO_NOTIFICATIONS
+#endif // HAVE_LIBNOTIFY
 
 } // namespace LinuxNotifications
 

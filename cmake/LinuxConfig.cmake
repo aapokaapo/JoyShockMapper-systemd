@@ -17,17 +17,20 @@ if (UNIX AND NOT APPLE)
         message (STATUS "libmanette not found – using uinput+BUS_USB fallback")
     endif ()
 
-    # GIO/D-Bus – optional; used for desktop notifications (controller connect/
-    # disconnect events).  gio-2.0 ships with GLib and is already a transitive
-    # dependency of GTK+, so it will virtually always be present.  When found,
-    # HAVE_GIO_NOTIFICATIONS is defined and LinuxNotificationManager.cpp is
-    # compiled with full D-Bus notification support.  When absent, the header
-    # provides inline no-op stubs so the rest of the code compiles unchanged.
-    pkg_search_module (gio QUIET IMPORTED_TARGET gio-2.0)
-    if (gio_FOUND)
-        message (STATUS "gio-2.0 found – enabling desktop notifications")
+    # libnotify – optional; used for desktop notifications (controller connect/
+    # disconnect events).  On Fedora 43 / GNOME 49 the libnotify library is the
+    # recommended way to send notifications: it integrates with GLib's main loop
+    # so that the explicit action callback can be invoked, which prevents GNOME
+    # from showing a startup-notification spinner when the user clicks a
+    # notification.  When found, HAVE_LIBNOTIFY is defined and
+    # LinuxNotificationManager.cpp is compiled with full libnotify support.
+    # When absent, the header provides inline no-op stubs so the rest of the
+    # code compiles unchanged.
+    pkg_search_module (libnotify QUIET IMPORTED_TARGET libnotify)
+    if (libnotify_FOUND)
+        message (STATUS "libnotify found – enabling desktop notifications")
     else ()
-        message (STATUS "gio-2.0 not found – desktop notifications disabled")
+        message (STATUS "libnotify not found – desktop notifications disabled")
     endif ()
 
     add_library (
@@ -54,14 +57,14 @@ if (UNIX AND NOT APPLE)
         )
     endif ()
 
-    if (gio_FOUND)
+    if (libnotify_FOUND)
         target_link_libraries (
             platform_dependencies INTERFACE
-            PkgConfig::gio
+            PkgConfig::libnotify
         )
         target_compile_definitions (
             platform_dependencies INTERFACE
-            HAVE_GIO_NOTIFICATIONS
+            HAVE_LIBNOTIFY
         )
     endif ()
 
