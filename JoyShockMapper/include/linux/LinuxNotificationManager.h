@@ -21,7 +21,8 @@ static constexpr int kDefaultExpireMs = 7000;
 // Send a desktop notification via the org.freedesktop.Notifications D-Bus interface.
 // Returns true on success, false if the notification service is unavailable or an
 // error occurs (failure is non-fatal; the caller should not abort on false).
-// Clicking the notification dismisses it without triggering any further action.
+// A "default" action is included so that GNOME 49+ dismisses the notification on
+// click rather than trying to launch the application.
 bool sendNotification(
   const std::string &summary,
   const std::string &body = "",

@@ -33,9 +33,15 @@ bool sendNotification(
 	g_variant_builder_add(&hintsBuilder, "{sv}", "urgency",
 	  g_variant_new_byte(static_cast<guint8>(urgency)));
 
-	// Empty actions array — no buttons, clicking the notification just dismisses it.
+	// Actions array with a "default" action to prevent GNOME from launching the app on click.
+	// When the actions list is empty, GNOME 49+ treats a notification click as a request to
+	// activate the application's default action (i.e. launch it).  Adding a "default" action
+	// tells the notification server what to do on click (dismiss) without executing any code.
+	// Actions are specified as alternating (action-id, label) string pairs per the spec.
 	GVariantBuilder actionsBuilder;
 	g_variant_builder_init(&actionsBuilder, G_VARIANT_TYPE("as"));
+	g_variant_builder_add(&actionsBuilder, "s", "default"); // action ID recognised by GNOME
+	g_variant_builder_add(&actionsBuilder, "s", "Dismiss"); // human-readable label (display is server-dependent)
 
 	// org.freedesktop.Notifications.Notify signature:
 	// (STRING app_name, UINT32 replaces_id, STRING app_icon,
@@ -47,7 +53,7 @@ bool sendNotification(
 	  "jsm-status-dark",       // app_icon
 	  summary.c_str(),         // summary
 	  body.c_str(),            // body
-	  &actionsBuilder,         // actions (empty)
+	  &actionsBuilder,         // actions
 	  &hintsBuilder,           // hints
 	  expireTimeoutMs);        // expire_timeout (-1 = server default)
 
