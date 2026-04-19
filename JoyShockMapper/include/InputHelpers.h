@@ -64,6 +64,7 @@ void initConsole();
 void initConsole(std::function<void()>);
 #ifndef _WIN32
 void initFifoCommandListener();
+void initSocketCommandListener();
 #endif
 tuple<string, string> GetActiveWindowName();
 

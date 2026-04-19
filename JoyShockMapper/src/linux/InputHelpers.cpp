@@ -18,7 +18,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 
 #include <queue>
 #include <mutex>
@@ -865,6 +867,98 @@ void initFifoCommandListener()
         if (fifo_write_fd >= 0) close(fifo_write_fd);
     }).detach();
 }
+
+void initSocketCommandListener()
+{
+	// Determine socket path: /run/user/<uid>/joyshockmapper.sock
+	// This matches the ListenStream path in the installed systemd socket unit.
+	const uid_t uid = ::getuid();
+	std::string socketPath = "/run/user/" + std::to_string(uid) + "/joyshockmapper.sock";
+
+	std::thread([socketPath]()
+	{
+		// Remove any stale socket left by a previous run.
+		::unlink(socketPath.c_str());
+
+		int serverFd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+		if (serverFd < 0)
+		{
+			perror("[Socket] socket");
+			return;
+		}
+
+		struct sockaddr_un addr{};
+		addr.sun_family = AF_UNIX;
+		::strncpy(addr.sun_path, socketPath.c_str(), sizeof(addr.sun_path) - 1);
+		addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
+
+		if (::bind(serverFd, reinterpret_cast<const struct sockaddr *>(&addr), sizeof(addr)) < 0)
+		{
+			perror("[Socket] bind");
+			::close(serverFd);
+			return;
+		}
+
+		// Restrict access to the current user only.
+		::chmod(socketPath.c_str(), 0600);
+
+		if (::listen(serverFd, 8) < 0)
+		{
+			perror("[Socket] listen");
+			::close(serverFd);
+			::unlink(socketPath.c_str());
+			return;
+		}
+
+		COUT_INFO << "Command socket listening at " << socketPath << '\n';
+
+		while (true)
+		{
+			int clientFd = ::accept(serverFd, nullptr, nullptr);
+			if (clientFd < 0)
+				break;
+
+			// Handle each client connection in its own short-lived thread.
+			std::thread([clientFd]()
+			{
+				FILE *f = ::fdopen(clientFd, "r");
+				if (!f)
+				{
+					::close(clientFd);
+					return;
+				}
+
+				char *lineptr = nullptr;
+				size_t n = 0;
+				while (true)
+				{
+					ssize_t len = ::getline(&lineptr, &n, f);
+					if (len <= 0)
+						break;
+
+					std::string line(lineptr, static_cast<size_t>(len));
+					// Strip trailing CR/LF.
+					while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
+						line.pop_back();
+
+					if (!line.empty())
+					{
+						std::lock_guard<std::mutex> lock(commandQueueMutex);
+						commandQueue.push(Command{ line, CommandSource::FIFO });
+						commandQueueCV.notify_one();
+					}
+				}
+
+				free(lineptr);
+				fclose(f);
+			}).detach();
+		}
+
+		::close(serverFd);
+		::unlink(socketPath.c_str());
+	}).detach();
+}
+
 bool IsVisible()
 {
 	return true;
