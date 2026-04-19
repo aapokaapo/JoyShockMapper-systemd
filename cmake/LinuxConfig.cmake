@@ -17,15 +17,17 @@ if (UNIX AND NOT APPLE)
         message (STATUS "libmanette not found – using uinput+BUS_USB fallback")
     endif ()
 
-    # GIO/D-Bus – optional; used for desktop notifications (controller connect/
-    # disconnect events).  gio-2.0 ships with GLib and is already a transitive
+    # GIO/D-Bus – used to send desktop notifications via the XDG Desktop Portal
+    # (org.freedesktop.portal.Notification), the modern standard on GNOME 45+
+    # and Fedora 43.  gio-2.0 ships with GLib and is already a transitive
     # dependency of GTK+, so it will virtually always be present.  When found,
-    # HAVE_GIO_NOTIFICATIONS is defined and LinuxNotificationManager.cpp is
-    # compiled with full D-Bus notification support.  When absent, the header
-    # provides inline no-op stubs so the rest of the code compiles unchanged.
+    # HAVE_XDG_NOTIFICATIONS is defined and LinuxNotificationManager.cpp is
+    # compiled with full portal-based notification support.  When absent, the
+    # header provides inline no-op stubs so the rest of the code compiles
+    # unchanged.
     pkg_search_module (gio QUIET IMPORTED_TARGET gio-2.0)
     if (gio_FOUND)
-        message (STATUS "gio-2.0 found – enabling desktop notifications")
+        message (STATUS "gio-2.0 found – enabling XDG desktop notifications")
     else ()
         message (STATUS "gio-2.0 not found – desktop notifications disabled")
     endif ()
@@ -61,7 +63,7 @@ if (UNIX AND NOT APPLE)
         )
         target_compile_definitions (
             platform_dependencies INTERFACE
-            HAVE_GIO_NOTIFICATIONS
+            HAVE_XDG_NOTIFICATIONS
         )
     endif ()
 
