@@ -22,6 +22,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __linux__
+#include "linux/LinuxNotificationManager.h"
+#endif
+
 #pragma warning(disable : 4996) // Disable deprecated API warnings
 
 std::string NONAME;
@@ -1179,8 +1183,12 @@ void connectDevices(bool mergeJoycons = true)
 			{
 				// The second JC points to the same common _buttons as the other one.
 				COUT << "Found a joycon pair!\n";
+#ifdef __linux__
+				LinuxNotifications::sendNotification("JoyShockMapper", "Found a joycon pair!");
+#else
 				if (tray)
 					tray->SendNotification("Found a joycon pair!");
+#endif
 				handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type, otherJoyCon->second->_context);
 			}
 			else
@@ -1193,20 +1201,33 @@ void connectDevices(bool mergeJoycons = true)
 	if (numConnected == 1)
 	{
 		COUT << "1 device connected\n";
+#ifdef __linux__
+		LinuxNotifications::sendNotification("JoyShockMapper", "1 device connected");
+#else
 		if (tray)
 			tray->SendNotification("1 device connected");
+#endif
 	}
 	else if (numConnected == 0)
 	{
 		CERR << numConnected << " devices connected\n";
+#ifdef __linux__
+		LinuxNotifications::sendNotification("JoyShockMapper", "No devices connected",
+		  LinuxNotifications::Urgency::Low);
+#else
 		if (tray)
 			tray->SendNotification("No devices connected");
+#endif
 	}
 	else
 	{
 		COUT << numConnected << " devices connected\n";
+#ifdef __linux__
+		LinuxNotifications::sendNotification("JoyShockMapper", to_string(numConnected) + " devices connected");
+#else
 		if (tray)
 			tray->SendNotification(to_string(numConnected) + " devices connected");
+#endif
 	}
 	// if (!IsVisible())
 	//{
@@ -1821,13 +1842,24 @@ ControllerScheme updateVirtualController(ControllerScheme prevScheme, Controller
 		const char *schemeName = (nextScheme == ControllerScheme::XBOX) ? "Xbox" : "DS4";
 		if (success)
 		{
+#ifdef __linux__
+			LinuxNotifications::sendNotification("JoyShockMapper",
+			  string("Virtual ") + schemeName + " controller initialized");
+#else
 			if (tray)
 				tray->SendNotification(string("Virtual ") + schemeName + " controller initialized");
+#endif
 		}
 		else
 		{
+#ifdef __linux__
+			LinuxNotifications::sendNotification("JoyShockMapper",
+			  string("Virtual ") + schemeName + " controller initialization failed",
+			  LinuxNotifications::Urgency::Critical);
+#else
 			if (tray)
 				tray->SendNotification(string("Virtual ") + schemeName + " controller initialization failed");
+#endif
 		}
 	}
 	return success ? nextScheme : prevScheme;
@@ -2869,6 +2901,7 @@ int main(int argc, char *argv[])
 	// The pipe is used to receive commands from the console
 	// to the main thread
 	initFifoCommandListener();
+	initSocketCommandListener();
 	#endif
 	COUT_BOLD << "Welcome to JoyShockMapper version " << version << "!\n";
 	if (g_headless)

@@ -31,7 +31,7 @@ bool sendNotification(
 	g_variant_builder_add(&hintsBuilder, "{sv}", "urgency",
 	  g_variant_new_byte(static_cast<guint8>(urgency)));
 
-	// Build an empty actions array
+	// Empty actions array — no buttons, clicking the notification just dismisses it.
 	GVariantBuilder actionsBuilder;
 	g_variant_builder_init(&actionsBuilder, G_VARIANT_TYPE("as"));
 
@@ -40,14 +40,14 @@ bool sendNotification(
 	//  STRING summary, STRING body, ARRAY actions, DICT hints, INT32 expire_timeout)
 	GVariant *params = g_variant_new(
 	  "(susssasa{sv}i)",
-	  "JoyShockMapper",       // app_name
+	  "JoyShockMapper",        // app_name
 	  static_cast<guint32>(0), // replaces_id (0 = new notification)
-	  "jsm-status-dark",      // app_icon
-	  summary.c_str(),        // summary
-	  body.c_str(),           // body
-	  &actionsBuilder,        // actions
-	  &hintsBuilder,          // hints
-	  expireTimeoutMs);       // expire_timeout (-1 = server default)
+	  "jsm-status-dark",       // app_icon
+	  summary.c_str(),         // summary
+	  body.c_str(),            // body
+	  &actionsBuilder,         // actions (empty)
+	  &hintsBuilder,           // hints
+	  expireTimeoutMs);        // expire_timeout (-1 = server default)
 
 	GVariant *result = g_dbus_connection_call_sync(
 	  conn,

@@ -17,6 +17,7 @@ enum class Urgency
 // Send a desktop notification via the org.freedesktop.Notifications D-Bus interface.
 // Returns true on success, false if the notification service is unavailable or an
 // error occurs (failure is non-fatal; the caller should not abort on false).
+// Clicking the notification dismisses it without triggering any further action.
 bool sendNotification(
   const std::string &summary,
   const std::string &body = "",
