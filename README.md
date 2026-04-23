@@ -78,9 +78,7 @@ systemctl --user status "joyshockmapper@default.service"
 | GTK 3 | `gtk+-3.0` | UI / tray icon |
 | AppIndicator | `appindicator3-0.1` | System tray indicator |
 | libevdev | `libevdev` | Linux input device handling |
-| SDL2 | — | Controller support |
-| hidapi | — | HID device access |
-| libusb | — | USB device access |
+| SDL3 | — (auto-fetched via CPM) | Controller support (built automatically at configure time; no system package needed) |
 
 **Optional (feature-detected at configure time):**
 
@@ -101,13 +99,12 @@ sudo apt-get install -y \
   libgtk-3-dev \
   libappindicator3-dev \
   libevdev-dev \
-  libsdl2-dev \
-  libhidapi-dev \
-  libusb-1.0-0-dev \
   libglib2.0-dev
 
 # Optional
 sudo apt-get install -y libmanette-0.2-dev || true
+
+# SDL3 is fetched and built automatically by CMake/CPM — no system package needed.
 ```
 
 </details>
@@ -121,13 +118,12 @@ sudo dnf install -y \
   gtk3-devel \
   libappindicator-gtk3-devel \
   libevdev-devel \
-  SDL2-devel \
-  hidapi-devel \
-  libusb-devel \
   glib2-devel
 
 # Optional
 sudo dnf install -y libmanette-devel || true
+
+# SDL3 is fetched and built automatically by CMake/CPM — no system package needed.
 ```
 
 </details>
@@ -141,13 +137,12 @@ sudo pacman -S --needed \
   gtk3 \
   libappindicator-gtk3 \
   libevdev \
-  sdl2 \
-  hidapi \
-  libusb \
   glib2
 
 # Optional
 sudo pacman -S --needed libmanette || true
+
+# SDL3 is fetched and built automatically by CMake/CPM — no system package needed.
 ```
 
 </details>
@@ -156,6 +151,7 @@ sudo pacman -S --needed libmanette || true
 
 ```bash
 # 1. Configure (default install prefix: /usr/local)
+#    SDL=ON is the default — SDL3 is fetched/built automatically via CPM.
 mkdir -p build
 cd build
 cmake .. -DCMAKE_CXX_COMPILER=clang++
