@@ -6,6 +6,11 @@
 #include <iostream>
 #include <atomic>
 #include <mutex>
+#include <thread>
+
+// g_headless is defined in main.cpp; reference it here to check whether the
+// process is running without a GTK main loop.
+extern std::atomic<bool> g_headless;
 
 namespace LinuxNotifications
 {
@@ -68,6 +73,20 @@ void setupActionHandler()
 		// Release our reference; GLib keeps the shared connection alive so
 		// the signal subscription remains active for the process lifetime.
 		g_object_unref(conn);
+
+		// In headless mode there is no GTK main loop to dispatch D-Bus
+		// signals, so spin up a minimal GLib main loop on a background
+		// thread.  This allows ActionInvoked signals to be dispatched and
+		// acknowledged, preventing GNOME 49+ from launching a new app
+		// instance when the user clicks a notification.
+		if (g_headless)
+		{
+			std::thread([]() {
+				GMainLoop *loop = g_main_loop_new(nullptr, FALSE);
+				g_main_loop_run(loop);
+				g_main_loop_unref(loop);
+			}).detach();
+		}
 	});
 }
 
