@@ -1584,13 +1584,16 @@ void beforeShowTrayMenu()
 		  {
 			WriteToConsole("CALCULATE_REAL_WORLD_CALIBRATION");
 			ShowConsole(); });
-		tray->AddMenuItem(
-		  U("Hide when minimized"), [](bool isChecked)
-		  {
-			  SettingsManager::getV<Switch>(SettingID::HIDE_MINIMIZED)->set(isChecked ? Switch::ON : Switch::OFF);
-			  if (!isChecked)
-				  UnhideConsole(); },
-		  bind(&PollingThread::isRunning, minimizeThread.get()));
+		if (!g_headless)
+		{
+			tray->AddMenuItem(
+			  U("Hide when minimized"), [](bool isChecked)
+			  {
+				  SettingsManager::getV<Switch>(SettingID::HIDE_MINIMIZED)->set(isChecked ? Switch::ON : Switch::OFF);
+				  if (!isChecked)
+					  UnhideConsole(); },
+			  bind(&PollingThread::isRunning, minimizeThread.get()));
+		}
 		tray->AddMenuItem(U("Reset All Configs"), []()
 		  {
 			WriteToConsole("RESET_MAPPINGS");
