@@ -1598,8 +1598,15 @@ void beforeShowTrayMenu()
 		  {
 			WriteToConsole("RESET_MAPPINGS");
 			beforeShowTrayMenu(); });
-		tray->AddMenuItem(U("Quit"), []()
-		  { WriteToConsole("QUIT"); });
+		tray->AddMenuItem("Restart JSM Service", []() {
+                    std::cout << "[Tray] Requesting systemd to restart the service..." << std::endl;
+                    
+                    // The '&' at the end pushes the command to the background, 
+                    // preventing the std::system() call from blocking.
+                    std::system("systemctl --user restart joyshockmapper.service &"); 
+                });
+                tray->AddMenuItem(U("Quit"), []()
+                    { WriteToConsole("QUIT"); });
 	}
 }
 
