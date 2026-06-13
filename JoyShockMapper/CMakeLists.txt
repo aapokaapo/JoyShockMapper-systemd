@@ -152,7 +152,6 @@ if (LINUX)
         src/linux/LinuxNotificationManager.cpp  include/linux/LinuxNotificationManager.h
         src/linux/Whitelister.cpp
         src/linux/Gamepad.cpp
-        src/linux/GamepadLibmanette.cpp
     )
 endif ()
 

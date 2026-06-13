@@ -6,17 +6,7 @@ if (UNIX AND NOT APPLE)
     pkg_search_module (Gtkmm REQUIRED IMPORTED_TARGET gtk+-3.0)
     pkg_search_module (appindicator REQUIRED IMPORTED_TARGET appindicator3-0.1)
     pkg_search_module (evdev REQUIRED IMPORTED_TARGET libevdev)
-
-    # libmanette – optional; provides better Steam/SDL compatibility on modern
-    # Linux distributions (e.g. Fedora 43).  When found, HAVE_LIBMANETTE is
-    # defined so GamepadLibmanette.cpp can enable the extra integration code.
-    pkg_search_module (manette QUIET IMPORTED_TARGET manette-0.2)
-    if (manette_FOUND)
-        message (STATUS "libmanette found – enabling XDG Gamepad backend")
-    else ()
-        message (STATUS "libmanette not found – using uinput+BUS_USB fallback")
-    endif ()
-
+    
     # GIO/D-Bus – used to send desktop notifications via the XDG Desktop Portal
     # (org.freedesktop.portal.Notification), the modern standard on GNOME 45+
     # and Fedora 43.  gio-2.0 ships with GLib and is already a transitive

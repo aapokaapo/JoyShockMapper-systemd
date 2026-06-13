@@ -3,6 +3,7 @@
 #include <algorithm>
 #define _USE_MATH_DEFINES
 #include <math.h> // M_PI
+#include <iomanip>
 
 extern shared_ptr<JslWrapper> jsl;
 extern vector<JSMButton> mappings;
