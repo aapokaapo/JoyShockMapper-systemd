@@ -29,7 +29,14 @@ StatusNotifierItem::StatusNotifierItem(TrayIconData, std::function<void()> &&bef
 	  {
 		  iconPath = APPDIR;
 		  iconPath += "/usr/share/icons/hicolor/24x24/status/jsm-status-dark.svg";
-		  gtk_icon_theme_prepend_search_path(gtk_icon_theme_get_default(), iconPath.c_str());
+		  // gtk_icon_theme_get_default() internally calls gdk_screen_get_default(),
+		  // which returns NULL on a pure Wayland session (screens are an X11 concept).
+		  // Guard against that to avoid a GLib assertion warning.
+		  GdkScreen *screen = gdk_screen_get_default();
+		  if (screen)
+		  {
+			  gtk_icon_theme_prepend_search_path(gtk_icon_theme_get_for_screen(screen), iconPath.c_str());
+		  }
 	  }
 	  else
 	  {
