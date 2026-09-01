@@ -29,9 +29,12 @@ StatusNotifierItem::StatusNotifierItem(TrayIconData, std::function<void()> &&bef
 	  {
 		  iconPath = APPDIR;
 		  iconPath += "/usr/share/icons/hicolor/24x24/status/jsm-status-dark.svg";
-		  // gtk_icon_theme_get_default() internally calls gdk_screen_get_default(),
-		  // which returns NULL on a pure Wayland session (screens are an X11 concept).
-		  // Guard against that to avoid a GLib assertion warning.
+		  // gtk_icon_theme_get_default() calls gtk_icon_theme_get_for_screen(gdk_screen_get_default()).
+		  // On a pure Wayland session (GTK3 Wayland backend) gdk_screen_get_default() returns NULL
+		  // because GdkScreen is an X11 concept, which would trigger a GLib assertion warning.
+		  // Guard against that here.  On Wayland the custom search path is not registered, so
+		  // libappindicator may fall back to the system icon name; this only affects AppImage
+		  // deployments — normal installs use the system icon theme and are unaffected.
 		  GdkScreen *screen = gdk_screen_get_default();
 		  if (screen)
 		  {
