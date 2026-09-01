@@ -1,7 +1,6 @@
 [Unit]
 Description=JoyShockMapper Config Reload Socket
 Documentation=https://github.com/aapokaapo/JoyShockMapper
-PartOf=joyshockmapper.service
 
 [Socket]
 ListenStream=%t/joyshockmapper.sock
