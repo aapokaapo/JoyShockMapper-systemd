@@ -46,6 +46,7 @@ public:
 	virtual void setTouchState(optional<FloatXY> press1, optional<FloatXY> press2) = 0;
 	virtual void update() = 0;
 	virtual void prepareForReconnect() {}
+	virtual void setNotificationCallback(Callback) {}
 
 	virtual ControllerScheme getType() const = 0;
 

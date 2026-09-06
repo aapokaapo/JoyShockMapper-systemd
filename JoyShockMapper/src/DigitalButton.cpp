@@ -1070,6 +1070,7 @@ DigitalButton::Context::Context(Gamepad::Callback virtualControllerCallback, sha
 	chordStack.push_front(ButtonID::NONE); // Always hold mapping none at the end to _handle modeshifts and chords
 	if (_vigemController)
 	{
+		_vigemController->setNotificationCallback(virtualControllerCallback);
 		string error;
 		if (!_vigemController->isInitialized(&error))
 		{
