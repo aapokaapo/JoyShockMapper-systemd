@@ -25,6 +25,7 @@
 
 #ifdef __linux__
 #include <cstdlib>
+#include <sys/wait.h>
 #include <string>
 #include "linux/LinuxNotificationManager.h"
 #endif
@@ -1433,6 +1434,54 @@ bool do_SET_MOTION_STICK_NEUTRAL()
 	return true;
 }
 
+bool queueRestartJsmService()
+{
+#ifdef __linux__
+	const char *unitEnv = std::getenv("JSM_SYSTEMD_UNIT");
+	std::string unitName = (unitEnv != nullptr && unitEnv[0] != '\0') ? unitEnv : "joyshockmapper@default.service";
+
+	pid_t pid = fork();
+	if (pid < 0)
+	{
+		CERR << "Failed to queue restart for systemd service " << unitName << '\n';
+		return false;
+	}
+	if (pid == 0)
+	{
+		pid_t workerPid = fork();
+		if (workerPid < 0)
+			_exit(127);
+		if (workerPid > 0)
+			_exit(0);
+
+		execlp("systemd-run",
+		  "systemd-run",
+		  "--user",
+		  "--collect",
+		  "--quiet",
+		  "systemctl",
+		  "--user",
+		  "restart",
+		  "--",
+		  unitName.c_str(),
+		  static_cast<char *>(nullptr));
+		_exit(127);
+	}
+
+	int status = 0;
+	if (waitpid(pid, &status, 0) < 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+	{
+		CERR << "Failed to queue restart for systemd service " << unitName << '\n';
+		return false;
+	}
+	COUT << "Queued restart for systemd service " << unitName << '\n';
+	return true;
+#else
+	COUT << "Service restart is not available on this platform.\n";
+	return false;
+#endif
+}
+
 bool do_SLEEP(string_view argument)
 {
 	// first, check for a parameter
@@ -1598,15 +1647,10 @@ void beforeShowTrayMenu()
 		  {
 			WriteToConsole("RESET_MAPPINGS");
 			beforeShowTrayMenu(); });
-		tray->AddMenuItem("Restart JSM Service", []() {
-                    std::cout << "[Tray] Requesting systemd to restart the service..." << std::endl;
-                    
-                    // The '&' at the end pushes the command to the background, 
-                    // preventing the std::system() call from blocking.
-                    std::system("systemctl --user restart joyshockmapper.service &"); 
-                });
-                tray->AddMenuItem(U("Quit"), []()
-                    { WriteToConsole("QUIT"); });
+		tray->AddMenuItem(U("Restart JSM Service"), []()
+		  { WriteToConsole("__INTERNAL_RESTART_JSM_SERVICE__"); });
+		tray->AddMenuItem(U("Quit"), []()
+		  { WriteToConsole("QUIT"); });
 	}
 }
 
@@ -3074,7 +3118,11 @@ int main(int argc, char *argv[])
 			enteredCommand = cmd.text;
         #endif
 		
-
+		if (enteredCommand == "__INTERNAL_RESTART_JSM_SERVICE__")
+		{
+			queueRestartJsmService();
+			continue;
+		}
 		commandRegistry.processLine(enteredCommand);
 	}
 #ifdef _WIN32

@@ -12,6 +12,7 @@ Type=notify
 ExecStartPre=/bin/bash -c 'for i in {1..30}; do busctl --user list | grep -q "org.kde.StatusNotifierWatcher" && exit 0; sleep 1; done; exit 0'
 ExecStart=/usr/local/bin/JoyShockMapper --headless
 ExecReload=/bin/kill -HUP $MAINPID
+Environment=JSM_SYSTEMD_UNIT=%n
 
 # Forward the user's display environment so the tray icon works correctly on both X11 and Wayland.
 # AutoLoad (window-focus config switching) is disabled in headless mode.
