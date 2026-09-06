@@ -1448,6 +1448,12 @@ bool queueRestartJsmService()
 	}
 	if (pid == 0)
 	{
+		pid_t workerPid = fork();
+		if (workerPid < 0)
+			_exit(127);
+		if (workerPid > 0)
+			_exit(0);
+
 		execlp("systemd-run",
 		  "systemd-run",
 		  "--user",
