@@ -1433,6 +1433,25 @@ bool do_SET_MOTION_STICK_NEUTRAL()
 	return true;
 }
 
+bool do_RESTART_JSM_SERVICE()
+{
+#ifdef __linux__
+	const char *unitEnv = std::getenv("JSM_SYSTEMD_UNIT");
+	std::string unitName = (unitEnv != nullptr && unitEnv[0] != '\0') ? unitEnv : "joyshockmapper@default.service";
+	std::string command = "systemd-run --user --collect --quiet /usr/bin/systemctl --user restart \"" + unitName + "\"";
+	if (std::system(command.c_str()) != 0)
+	{
+		CERR << "Failed to queue restart for systemd service " << unitName << '\n';
+		return false;
+	}
+	COUT << "Queued restart for systemd service " << unitName << '\n';
+	return true;
+#else
+	COUT << "Service restart is not available on this platform.\n";
+	return false;
+#endif
+}
+
 bool do_SLEEP(string_view argument)
 {
 	// first, check for a parameter
@@ -1598,15 +1617,10 @@ void beforeShowTrayMenu()
 		  {
 			WriteToConsole("RESET_MAPPINGS");
 			beforeShowTrayMenu(); });
-		tray->AddMenuItem("Restart JSM Service", []() {
-                    std::cout << "[Tray] Requesting systemd to restart the service..." << std::endl;
-                    
-                    // The '&' at the end pushes the command to the background, 
-                    // preventing the std::system() call from blocking.
-                    std::system("systemctl --user restart joyshockmapper.service &"); 
-                });
-                tray->AddMenuItem(U("Quit"), []()
-                    { WriteToConsole("QUIT"); });
+		tray->AddMenuItem(U("Restart JSM Service"), []()
+		  { WriteToConsole("RESTART_JSM_SERVICE"); });
+		tray->AddMenuItem(U("Quit"), []()
+		  { WriteToConsole("QUIT"); });
 	}
 }
 
@@ -3001,6 +3015,7 @@ int main(int argc, char *argv[])
 	commandRegistry.add((new JSMMacro("SLEEP"))->SetMacro(bind(&do_SLEEP, placeholders::_2))->setHelp("Sleep for the given number of seconds, or one second if no number is given. Can't sleep more than 10 seconds per command."));
 	commandRegistry.add((new JSMMacro("FINISH_GYRO_CALIBRATION"))->SetMacro(bind(&do_FINISH_GYRO_CALIBRATION))->setHelp("Finish calibrating the gyro in all controllers."));
 	commandRegistry.add((new JSMMacro("RESTART_GYRO_CALIBRATION"))->SetMacro(bind(&do_RESTART_GYRO_CALIBRATION))->setHelp("Start calibrating the gyro in all controllers."));
+	commandRegistry.add((new JSMMacro("RESTART_JSM_SERVICE"))->SetMacro(bind(&do_RESTART_JSM_SERVICE))->setHelp("Queue a restart of the current systemd user service instance."));
 	commandRegistry.add((new JSMMacro("SET_MOTION_STICK_NEUTRAL"))->SetMacro(bind(&do_SET_MOTION_STICK_NEUTRAL))->setHelp("Set the neutral orientation for motion stick to whatever the orientation of the controller is."));
 	commandRegistry.add((new JSMMacro("README"))->SetMacro(bind(&do_README))->setHelp("Open the latest JoyShockMapper README in your browser."));
 	commandRegistry.add((new JSMMacro("WHITELIST_SHOW"))->SetMacro(bind(&do_WHITELIST_SHOW))->setHelp("Open the whitelister application"));
