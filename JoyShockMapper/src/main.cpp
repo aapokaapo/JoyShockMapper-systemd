@@ -25,6 +25,7 @@
 
 #ifdef __linux__
 #include <cstdlib>
+#include <set>
 #include <sys/wait.h>
 #include <string>
 #include "linux/LinuxNotificationManager.h"
@@ -1162,6 +1163,7 @@ void connectDevices(bool mergeJoycons = true)
 {
 #ifdef __linux__
 	vector<unique_ptr<Gamepad>> preservedVirtualControllers;
+	size_t nextPreservedVirtualController = 0;
 	vector<int> oldHandles;
 	oldHandles.reserve(handle_to_joyshock.size());
 	for (const auto &[handle, _] : handle_to_joyshock)
@@ -1223,10 +1225,9 @@ void connectDevices(bool mergeJoycons = true)
 			else
 			{
 #ifdef __linux__
-				if (!preservedVirtualControllers.empty())
+				if (nextPreservedVirtualController < preservedVirtualControllers.size())
 				{
-					handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type, nullptr, std::move(preservedVirtualControllers.back()));
-					preservedVirtualControllers.pop_back();
+					handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type, nullptr, std::move(preservedVirtualControllers[nextPreservedVirtualController++]));
 				}
 				else
 #endif
