@@ -261,6 +261,11 @@ public:
 	void setTouchState(optional<FloatXY> press1, optional<FloatXY> press2) override 
 	{}
 
+	void setNotificationCallback(Callback notification) override
+	{
+		_notification = notification;
+	}
+
 protected:
 	void notify(uint8_t largeMotor, uint8_t smallMotor, Indicator indicator)
 	{

@@ -25,6 +25,7 @@
 
 #ifdef __linux__
 #include <cstdlib>
+#include <set>
 #include <sys/wait.h>
 #include <string>
 #include "linux/LinuxNotificationManager.h"
@@ -1160,6 +1161,32 @@ void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE l
 
 void connectDevices(bool mergeJoycons = true)
 {
+#ifdef __linux__
+	vector<unique_ptr<Gamepad>> preservedVirtualControllers;
+	size_t nextPreservedVirtualController = 0;
+	vector<int> oldHandles;
+	oldHandles.reserve(handle_to_joyshock.size());
+	for (const auto &[handle, _] : handle_to_joyshock)
+	{
+		oldHandles.push_back(handle);
+	}
+	sort(oldHandles.begin(), oldHandles.end());
+	set<DigitalButton::Context *> preservedContexts;
+	for (int handle : oldHandles)
+	{
+		auto &js = handle_to_joyshock.at(handle);
+		if (!js || !js->_context || !js->_context->_vigemController)
+			continue;
+
+		auto *contextPtr = js->_context.get();
+		if (!preservedContexts.insert(contextPtr).second)
+			continue;
+
+		lock_guard guard(js->_context->callback_lock);
+		js->_context->_vigemController->prepareForReconnect();
+		preservedVirtualControllers.push_back(std::move(js->_context->_vigemController));
+	}
+#endif
 	handle_to_joyshock.clear();
 	this_thread::sleep_for(100ms);
 	int numConnected = jsl->ConnectDevices();
@@ -1197,7 +1224,16 @@ void connectDevices(bool mergeJoycons = true)
 			}
 			else
 			{
-				handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type);
+#ifdef __linux__
+				if (nextPreservedVirtualController < preservedVirtualControllers.size())
+				{
+					handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type, nullptr, std::move(preservedVirtualControllers[nextPreservedVirtualController++]));
+				}
+				else
+#endif
+				{
+					handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type);
+				}
 			}
 		}
 	}

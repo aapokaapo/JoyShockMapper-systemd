@@ -120,6 +120,7 @@ public:
 	struct Context
 	{
 		Context(Gamepad::Callback virtualControllerCallback, shared_ptr<MotionIf> mainMotion);
+		Context(Gamepad::Callback virtualControllerCallback, shared_ptr<MotionIf> mainMotion, unique_ptr<Gamepad> preservedVirtualController);
 		deque<pair<ButtonID, KeyCode>> gyroActionQueue; // Queue of gyro control actions currently in effect
 		deque<pair<ButtonID, KeyCode>> activeTogglesQueue;
 		deque<ButtonID> chordStack; // Represents the current active _buttons in order from most recent to latest

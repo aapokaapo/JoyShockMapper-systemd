@@ -1062,3 +1062,40 @@ DigitalButton::Context::Context(Gamepad::Callback virtualControllerCallback, sha
 		}
 	}
 }
+
+DigitalButton::Context::Context(Gamepad::Callback virtualControllerCallback, shared_ptr<MotionIf> mainMotion, unique_ptr<Gamepad> preservedVirtualController)
+  : rightMainMotion(mainMotion)
+  , _vigemController(std::move(preservedVirtualController))
+{
+	chordStack.push_front(ButtonID::NONE); // Always hold mapping none at the end to _handle modeshifts and chords
+	if (_vigemController)
+	{
+		_vigemController->setNotificationCallback(virtualControllerCallback);
+		string error;
+		if (!_vigemController->isInitialized(&error))
+		{
+			_vigemController.reset();
+			SettingsManager::getV<ControllerScheme>(SettingID::VIRTUAL_CONTROLLER)->set(ControllerScheme::NONE);
+		}
+		if (!error.empty())
+		{
+			CERR << error << '\n';
+		}
+		return;
+	}
+
+	auto virtual_controller = SettingsManager::getV<ControllerScheme>(SettingID::VIRTUAL_CONTROLLER);
+	if (virtual_controller->value() != ControllerScheme::NONE)
+	{
+		_vigemController.reset(Gamepad::getNew(virtual_controller->value(), virtualControllerCallback));
+		string error;
+		if (!_vigemController->isInitialized(&error))
+		{
+			virtual_controller->set(ControllerScheme::NONE);
+		}
+		if (!error.empty())
+		{
+			CERR << error << '\n';
+		}
+	}
+}

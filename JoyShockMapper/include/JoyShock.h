@@ -12,7 +12,7 @@
 class JoyShock
 {
 public:
-	JoyShock(int uniqueHandle, int controllerSplitType, shared_ptr<DigitalButton::Context> sharedButtonCommon = nullptr);
+	JoyShock(int uniqueHandle, int controllerSplitType, shared_ptr<DigitalButton::Context> sharedButtonCommon = nullptr, unique_ptr<Gamepad> preservedVirtualController = nullptr);
 
 	~JoyShock();
 

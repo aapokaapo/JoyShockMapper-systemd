@@ -30,7 +30,7 @@ float angleBasedDeadzone(float theta, float returnDeadzone, float returnDeadzone
 
 AdaptiveTriggerSetting JoyShock::_unusedEffect;
 
-JoyShock::JoyShock(int uniqueHandle, int controllerSplitType, shared_ptr<DigitalButton::Context> sharedButtonCommon)
+JoyShock::JoyShock(int uniqueHandle, int controllerSplitType, shared_ptr<DigitalButton::Context> sharedButtonCommon, unique_ptr<Gamepad> preservedVirtualController)
   : _handle(uniqueHandle)
   , _splitType(controllerSplitType)
   , _controllerType(jsl->GetControllerType(uniqueHandle))
@@ -48,7 +48,7 @@ JoyShock::JoyShock(int uniqueHandle, int controllerSplitType, shared_ptr<Digital
 {
 	if (!sharedButtonCommon)
 	{
-		_context = make_shared<DigitalButton::Context>(bind(&JoyShock::onVirtualControllerNotification, this, placeholders::_1, placeholders::_2, placeholders::_3), _motion);
+		_context = make_shared<DigitalButton::Context>(bind(&JoyShock::onVirtualControllerNotification, this, placeholders::_1, placeholders::_2, placeholders::_3), _motion, std::move(preservedVirtualController));
 	}
 	_light_bar = getSetting<Color>(SettingID::LIGHT_BAR);
 
