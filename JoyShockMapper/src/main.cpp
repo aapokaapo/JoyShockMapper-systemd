@@ -25,6 +25,7 @@
 
 #ifdef __linux__
 #include <cstdlib>
+#include <sys/wait.h>
 #include <string>
 #include "linux/LinuxNotificationManager.h"
 #endif
@@ -1438,8 +1439,31 @@ bool do_RESTART_JSM_SERVICE()
 #ifdef __linux__
 	const char *unitEnv = std::getenv("JSM_SYSTEMD_UNIT");
 	std::string unitName = (unitEnv != nullptr && unitEnv[0] != '\0') ? unitEnv : "joyshockmapper@default.service";
-	std::string command = "systemd-run --user --collect --quiet /usr/bin/systemctl --user restart \"" + unitName + "\"";
-	if (std::system(command.c_str()) != 0)
+
+	pid_t pid = fork();
+	if (pid < 0)
+	{
+		CERR << "Failed to queue restart for systemd service " << unitName << '\n';
+		return false;
+	}
+	if (pid == 0)
+	{
+		execlp("systemd-run",
+		  "systemd-run",
+		  "--user",
+		  "--collect",
+		  "--quiet",
+		  "systemctl",
+		  "--user",
+		  "restart",
+		  "--",
+		  unitName.c_str(),
+		  static_cast<char *>(nullptr));
+		_exit(127);
+	}
+
+	int status = 0;
+	if (waitpid(pid, &status, 0) < 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
 	{
 		CERR << "Failed to queue restart for systemd service " << unitName << '\n';
 		return false;
