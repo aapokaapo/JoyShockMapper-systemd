@@ -308,36 +308,6 @@ private:
 		return 0;
 	}
 
-public:
-	virtual void prepareForReconnect() override
-	{
-		if (!initialized) return;
-
-		static constexpr uint16_t buttons[] = {
-			BTN_WEST, BTN_NORTH, BTN_EAST, BTN_SOUTH,
-			BTN_TL, BTN_TR, BTN_TL2, BTN_TR2,
-			BTN_SELECT, BTN_START, BTN_THUMBL, BTN_THUMBR,
-			BTN_MODE, BTN_TOUCH, BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT
-		};
-
-		for (auto button : buttons)
-			sendEvent(EV_KEY, button, 0);
-
-		sendEvent(EV_ABS, ABS_X, 128);
-		sendEvent(EV_ABS, ABS_Y, 128);
-		sendEvent(EV_ABS, ABS_RX, 128);
-		sendEvent(EV_ABS, ABS_RY, 128);
-		sendEvent(EV_ABS, ABS_Z, 0);
-		sendEvent(EV_ABS, ABS_RZ, 0);
-
-		state = {};
-		state.left_stick_x = 128;
-		state.left_stick_y = 128;
-		state.right_stick_x = 128;
-		state.right_stick_y = 128;
-		sendSync();
-	}
-
 	virtual void setButton(KeyCode btn, bool pressed) override
 	{
 		if (!initialized) return;
@@ -445,6 +415,35 @@ public:
 		} else {
 			std::cerr << "[DS4 Gamepad] Successfully initialized" << std::endl;
 		}
+	}
+
+	virtual void prepareForReconnect() override
+	{
+		if (!initialized) return;
+
+		static constexpr uint16_t buttons[] = {
+			BTN_WEST, BTN_NORTH, BTN_EAST, BTN_SOUTH,
+			BTN_TL, BTN_TR, BTN_TL2, BTN_TR2,
+			BTN_SELECT, BTN_START, BTN_THUMBL, BTN_THUMBR,
+			BTN_MODE, BTN_TOUCH, BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT
+		};
+
+		for (auto button : buttons)
+			sendEvent(EV_KEY, button, 0);
+
+		sendEvent(EV_ABS, ABS_X, 128);
+		sendEvent(EV_ABS, ABS_Y, 128);
+		sendEvent(EV_ABS, ABS_RX, 128);
+		sendEvent(EV_ABS, ABS_RY, 128);
+		sendEvent(EV_ABS, ABS_Z, 0);
+		sendEvent(EV_ABS, ABS_RZ, 0);
+
+		state = {};
+		state.left_stick_x = 128;
+		state.left_stick_y = 128;
+		state.right_stick_x = 128;
+		state.right_stick_y = 128;
+		sendSync();
 	}
 
 private:
