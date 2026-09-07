@@ -8,13 +8,13 @@ const ROOT_DIR = __dirname;
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const PORT = Number.parseInt(process.env.PORT ?? '3210', 10);
 const DEFAULT_SOCKET_PATH = process.env.JSM_SOCKET_PATH ?? `/run/user/${typeof process.getuid === 'function' ? process.getuid() : '1000'}/joyshockmapper.sock`;
-const ALLOWED_SOCKET_PATHS = new Set(
-  (process.env.JSM_SOCKET_ALLOWLIST ?? DEFAULT_SOCKET_PATH)
-    .split('\n')
-    .flatMap((value) => value.split(';'))
-    .map((value) => value.trim())
-    .filter(Boolean)
-);
+const ALLOWED_SOCKET_PATHS = new Set([DEFAULT_SOCKET_PATH]);
+for (const value of (process.env.JSM_SOCKET_ALLOWLIST ?? '').split('\n').flatMap((entry) => entry.split(';'))) {
+  const trimmed = value.trim();
+  if (trimmed) {
+    ALLOWED_SOCKET_PATHS.add(trimmed);
+  }
+}
 
 const CONTENT_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -235,21 +235,25 @@ async function handleApi(request, response, url) {
 }
 
 const server = http.createServer(async (request, response) => {
-  let url;
-
   try {
-    url = new URL(request.url ?? '/', 'http://127.0.0.1');
+    let url;
+
+    try {
+      url = new URL(request.url ?? '/', 'http://127.0.0.1');
+    } catch (error) {
+      sendJson(response, 400, { error: 'Invalid request URL.' });
+      return;
+    }
+
+    if (url.pathname.startsWith('/api/')) {
+      await handleApi(request, response, url);
+      return;
+    }
+
+    await serveStatic(url.pathname, response);
   } catch (error) {
-    sendJson(response, 400, { error: 'Invalid request URL.' });
-    return;
+    sendJson(response, 500, { error: 'Unexpected server error.', detail: error.message });
   }
-
-  if (url.pathname.startsWith('/api/')) {
-    await handleApi(request, response, url);
-    return;
-  }
-
-  await serveStatic(url.pathname, response);
 });
 
 server.listen(PORT, () => {
