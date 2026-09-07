@@ -13,7 +13,7 @@ This folder is a self-contained UI project for talking to the running `joyshockm
 ## Run
 
 ```bash
-cd /home/runner/work/JoyShockMapper-systemd/JoyShockMapper-systemd/joyshockmapper-ui
+cd joyshockmapper-ui
 node server.js
 ```
 

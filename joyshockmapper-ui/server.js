@@ -17,6 +17,12 @@ const CONTENT_TYPES = {
   '.svg': 'image/svg+xml; charset=utf-8'
 };
 
+function createHttpError(statusCode, message) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, { 'Content-Type': CONTENT_TYPES['.json'] });
   response.end(JSON.stringify(payload));
@@ -45,29 +51,38 @@ async function getSocketStatus(candidate) {
 function readJson(request) {
   return new Promise((resolve, reject) => {
     let body = '';
+    let settled = false;
+
+    const finish = (callback, value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      callback(value);
+    };
 
     request.on('data', (chunk) => {
       body += chunk;
       if (body.length > 1024 * 1024) {
-        reject(new Error('Request body is too large.'));
+        finish(reject, createHttpError(400, 'Request body is too large.'));
         request.destroy();
       }
     });
 
     request.on('end', () => {
       if (body.length === 0) {
-        resolve({});
+        finish(resolve, {});
         return;
       }
 
       try {
-        resolve(JSON.parse(body));
+        finish(resolve, JSON.parse(body));
       } catch (error) {
-        reject(new Error('Request body must be valid JSON.'));
+        finish(reject, createHttpError(400, 'Request body must be valid JSON.'));
       }
     });
 
-    request.on('error', reject);
+    request.on('error', (error) => finish(reject, error));
   });
 }
 
@@ -152,7 +167,11 @@ async function handleApi(request, response, url) {
       await sendCommands(commands, socketPath);
       sendJson(response, 200, { ok: true, sent: commands, socketPath });
     } catch (error) {
-      sendJson(response, 500, { error: 'Failed to send commands.', detail: error.message });
+      const statusCode = error.statusCode ?? 500;
+      sendJson(response, statusCode, {
+        error: statusCode === 400 ? 'Invalid command request.' : 'Failed to send commands.',
+        detail: error.message
+      });
     }
     return;
   }

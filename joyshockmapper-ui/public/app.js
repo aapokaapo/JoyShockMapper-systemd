@@ -131,6 +131,10 @@ function renderButtons() {
   for (const button of buttonDefinitions) {
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     group.setAttribute('class', 'svg-button');
+    group.setAttribute('role', 'button');
+    group.setAttribute('tabindex', '0');
+    group.setAttribute('focusable', 'true');
+    group.setAttribute('aria-label', `Configure ${button.id}`);
     group.dataset.buttonId = button.id;
 
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -147,6 +151,12 @@ function renderButtons() {
 
     group.append(circle, label);
     group.addEventListener('click', () => selectButton(button.id));
+    group.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectButton(button.id);
+      }
+    });
     buttonLayer.append(group);
   }
 
