@@ -38,26 +38,27 @@
             <span id="selected-button-chip" class="chip">Select a button</span>
           </div>
 
-          <svg id="controller-svg" viewBox="0 0 760 420" role="img" aria-labelledby="controller-title">
-            <title id="controller-title">JoyShockMapper controller button layout</title>
-            <defs>
-              <linearGradient id="shellGradient" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#1f2a44" />
-                <stop offset="100%" stop-color="#101826" />
-              </linearGradient>
-            </defs>
-            <path class="controller-shell" d="M142 144c28-54 77-81 147-81h181c70 0 119 27 147 81l62 121c16 32 3 72-29 89-25 14-56 9-77-12l-66-66H253l-66 66c-21 21-52 26-77 12-32-17-45-57-29-89z" />
-            <rect class="controller-core" x="270" y="118" width="220" height="132" rx="40" />
-            <circle class="controller-stick-base" cx="248" cy="244" r="53" />
-            <circle class="controller-stick-base" cx="511" cy="244" r="53" />
-            <rect class="controller-touch" x="314" y="135" width="132" height="66" rx="18" />
-            <rect class="controller-shoulder" x="180" y="95" width="116" height="25" rx="12" />
-            <rect class="controller-shoulder" x="464" y="95" width="116" height="25" rx="12" />
-            <rect class="controller-trigger" x="158" y="67" width="128" height="24" rx="12" />
-            <rect class="controller-trigger" x="474" y="67" width="128" height="24" rx="12" />
-
-            <g id="button-layer"></g>
-          </svg>
+          <div class="controller-stage">
+            <svg id="controller-svg" viewBox="0 0 760 420" role="img" aria-labelledby="controller-title">
+              <title id="controller-title">JoyShockMapper controller button layout</title>
+              <defs>
+                <linearGradient id="shellGradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#1f2a44" />
+                  <stop offset="100%" stop-color="#101826" />
+                </linearGradient>
+              </defs>
+              <path class="controller-shell" d="M142 144c28-54 77-81 147-81h181c70 0 119 27 147 81l62 121c16 32 3 72-29 89-25 14-56 9-77-12l-66-66H253l-66 66c-21 21-52 26-77 12-32-17-45-57-29-89z" />
+              <rect class="controller-core" x="270" y="118" width="220" height="132" rx="40" />
+              <circle class="controller-stick-base" cx="248" cy="244" r="53" />
+              <circle class="controller-stick-base" cx="511" cy="244" r="53" />
+              <rect class="controller-touch" x="314" y="135" width="132" height="66" rx="18" />
+              <rect class="controller-shoulder" x="180" y="95" width="116" height="25" rx="12" />
+              <rect class="controller-shoulder" x="464" y="95" width="116" height="25" rx="12" />
+              <rect class="controller-trigger" x="158" y="67" width="128" height="24" rx="12" />
+              <rect class="controller-trigger" x="474" y="67" width="128" height="24" rx="12" />
+            </svg>
+            <div id="button-layer" class="button-overlay" aria-label="Controller button selector"></div>
+          </div>
 
           <div class="button-editor">
             <p class="hint">Use the SVG buttons with a mouse or with Tab + Enter/Space to pick a JoyShockMapper button.</p>

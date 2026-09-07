@@ -186,36 +186,20 @@ function renderButtons() {
   buttonLayer.innerHTML = '';
 
   for (const button of buttonDefinitions) {
-    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.setAttribute('class', 'svg-button');
-    group.setAttribute('role', 'button');
-    group.setAttribute('tabindex', '0');
-    group.setAttribute('focusable', 'true');
-    group.setAttribute('aria-label', `Configure ${button.id}`);
-    group.setAttribute('aria-pressed', 'false');
-    group.dataset.buttonId = button.id;
+    const buttonElement = document.createElement('button');
+    buttonElement.type = 'button';
+    buttonElement.className = 'svg-button';
+    buttonElement.setAttribute('aria-label', `Configure ${button.id}`);
+    buttonElement.setAttribute('aria-pressed', 'false');
+    buttonElement.dataset.buttonId = button.id;
+    buttonElement.textContent = button.label;
+    buttonElement.style.left = `${(button.x / 760) * 100}%`;
+    buttonElement.style.top = `${(button.y / 420) * 100}%`;
+    buttonElement.style.width = `${(button.r * 2 / 760) * 100}%`;
+    buttonElement.style.height = `${(button.r * 2 / 420) * 100}%`;
 
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('class', 'hit-target');
-    circle.setAttribute('cx', String(button.x));
-    circle.setAttribute('cy', String(button.y));
-    circle.setAttribute('r', String(button.r));
-
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('class', 'label');
-    label.setAttribute('x', String(button.x));
-    label.setAttribute('y', String(button.y + 1));
-    label.textContent = button.label;
-
-    group.append(circle, label);
-    group.addEventListener('click', () => selectButton(button.id));
-    group.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space') {
-        event.preventDefault();
-        selectButton(button.id);
-      }
-    });
-    buttonLayer.append(group);
+    buttonElement.addEventListener('click', () => selectButton(button.id));
+    buttonLayer.append(buttonElement);
   }
 
   selectButton(selectedButton.id);

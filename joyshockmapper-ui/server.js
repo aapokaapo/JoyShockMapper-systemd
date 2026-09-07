@@ -91,6 +91,7 @@ async function getSocketStatus(candidate) {
 function readJson(request) {
   return new Promise((resolve, reject) => {
     let body = '';
+    let bodyBytes = 0;
     let settled = false;
 
     const finish = (callback, value) => {
@@ -102,11 +103,14 @@ function readJson(request) {
     };
 
     request.on('data', (chunk) => {
-      body += chunk;
-      if (body.length > 1024 * 1024) {
+      bodyBytes += chunk.length;
+      if (bodyBytes > 1024 * 1024) {
         finish(reject, createHttpError(400, 'Request body is too large.'));
         request.destroy();
+        return;
       }
+
+      body += chunk;
     });
 
     request.on('end', () => {
