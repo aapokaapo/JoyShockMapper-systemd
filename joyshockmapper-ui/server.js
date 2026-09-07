@@ -47,9 +47,8 @@ function resolveSocketPath(candidate) {
 }
 
 async function getSocketStatus(candidate) {
-  const socketPath = resolveSocketPath(candidate);
-
   try {
+    const socketPath = resolveSocketPath(candidate);
     const stats = await fsp.stat(socketPath);
     if (!stats.isSocket()) {
       return { available: false, socketPath, message: 'The path exists, but it is not a UNIX socket.' };
@@ -80,6 +79,11 @@ async function getSocketStatus(candidate) {
 
     return { available: true, socketPath };
   } catch (error) {
+    if (error.statusCode) {
+      throw error;
+    }
+
+    const socketPath = typeof candidate === 'string' && candidate.trim().length > 0 ? candidate.trim() : DEFAULT_SOCKET_PATH;
     return { available: false, socketPath, message: error.message };
   }
 }
@@ -190,7 +194,15 @@ async function serveStatic(requestPath, response) {
 
 async function handleApi(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/socket-status') {
-    sendJson(response, 200, await getSocketStatus(url.searchParams.get('path')));
+    try {
+      sendJson(response, 200, await getSocketStatus(url.searchParams.get('path')));
+    } catch (error) {
+      const statusCode = error.statusCode ?? 500;
+      sendJson(response, statusCode, {
+        error: statusCode === 400 ? 'Invalid socket request.' : 'Failed to inspect socket.',
+        detail: error.message
+      });
+    }
     return;
   }
 

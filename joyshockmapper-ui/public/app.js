@@ -316,7 +316,9 @@ function drawCurve() {
   const height = 220 - margin.top - margin.bottom;
   const timeToCap = rate > 0 ? Math.max(0, (cap - 1) / rate) : null;
   const xMax = timeToCap === 0 ? 0.25 : timeToCap ? Math.max(0.5, timeToCap) : 1;
-  const yMax = Math.max(1.1, cap + 0.25);
+  const capIsFlat = cap === 1;
+  const yMin = capIsFlat ? 1 : 0;
+  const yMax = capIsFlat ? 1.25 : Math.max(1.1, cap + 0.25);
 
   curveGrid.innerHTML = '';
   for (let tick = 0; tick <= 4; tick += 1) {
@@ -331,7 +333,7 @@ function drawCurve() {
     const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     yLabel.setAttribute('x', '8');
     yLabel.setAttribute('y', String(y + 4));
-    yLabel.textContent = (yMax - ((yMax - 1) * tick) / 4).toFixed(1);
+    yLabel.textContent = (yMax - ((yMax - yMin) * tick) / 4).toFixed(1);
     curveGrid.append(yLabel);
   }
 
@@ -357,7 +359,9 @@ function drawCurve() {
     const time = (xMax * sample) / 32;
     const multiplier = Math.min(cap, 1 + rate * time);
     const x = margin.left + (time / xMax) * width;
-    const y = margin.top + height - ((multiplier - 1) / (yMax - 1)) * height;
+    const y = capIsFlat
+      ? margin.top
+      : margin.top + height - ((multiplier - yMin) / (yMax - yMin)) * height;
     points.push(`${sample === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`);
   }
 
