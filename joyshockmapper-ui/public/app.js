@@ -163,9 +163,10 @@ async function sendCommands(commands, title) {
 }
 
 function buildButtonCommand(buttonId, assignment, label) {
+  const safeAssignment = sanitizeSingleLine(assignment);
   const safeLabel = sanitizeSingleLine(label);
   const suffix = safeLabel ? ` # ${safeLabel}` : '';
-  return `${buttonId} = ${assignment}${suffix}`;
+  return `${buttonId} = ${safeAssignment}${suffix}`;
 }
 
 function selectButton(buttonId) {
@@ -276,8 +277,9 @@ function drawGyroCurve() {
     gyroCurveGrid.append(gridLine);
 
     const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    xLabel.setAttribute('x', String(x - 10));
+    xLabel.setAttribute('x', String(x));
     xLabel.setAttribute('y', '208');
+    xLabel.setAttribute('text-anchor', 'middle');
     xLabel.textContent = ((xMax * tick) / 4).toFixed(1);
     gyroCurveGrid.append(xLabel);
   }
@@ -343,8 +345,9 @@ function drawCurve() {
     curveGrid.append(gridLine);
 
     const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    xLabel.setAttribute('x', String(x - 10));
+    xLabel.setAttribute('x', String(x));
     xLabel.setAttribute('y', '208');
+    xLabel.setAttribute('text-anchor', 'middle');
     xLabel.textContent = ((xMax * tick) / 4).toFixed(1);
     curveGrid.append(xLabel);
   }
@@ -365,7 +368,7 @@ function drawCurve() {
 checkSocketButton.addEventListener('click', checkSocket);
 loadButtonDraftButton.addEventListener('click', loadSelectedDraft);
 applyButtonMappingButton.addEventListener('click', async () => {
-  const assignment = buttonAssignmentInput.value.trim();
+  const assignment = sanitizeSingleLine(buttonAssignmentInput.value);
   const label = sanitizeSingleLine(buttonLabelInput.value);
 
   if (!assignment) {
@@ -373,6 +376,7 @@ applyButtonMappingButton.addEventListener('click', async () => {
     return;
   }
 
+  buttonAssignmentInput.value = assignment;
   buttonLabelInput.value = label;
   buttonDrafts.set(selectedButton.id, { assignment, label });
   await sendCommands([buildButtonCommand(selectedButton.id, assignment, label)], `Mapped ${selectedButton.id}`);
@@ -413,8 +417,10 @@ sendRawCommandsButton.addEventListener('click', async () => {
 });
 
 insertButtonCommandButton.addEventListener('click', () => {
-  const assignment = buttonAssignmentInput.value.trim() || 'LMOUSE';
+  const assignment = sanitizeSingleLine(buttonAssignmentInput.value) || 'LMOUSE';
   const label = sanitizeSingleLine(buttonLabelInput.value);
+  buttonAssignmentInput.value = assignment;
+  buttonLabelInput.value = label;
   const command = buildButtonCommand(selectedButton.id, assignment, label);
   rawCommandsInput.value = `${rawCommandsInput.value.trim()}\n${command}`.trim();
   addLogEntry('Draft command inserted', command);

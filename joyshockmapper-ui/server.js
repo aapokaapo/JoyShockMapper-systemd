@@ -10,7 +10,8 @@ const PORT = Number.parseInt(process.env.PORT ?? '3210', 10);
 const DEFAULT_SOCKET_PATH = process.env.JSM_SOCKET_PATH ?? `/run/user/${typeof process.getuid === 'function' ? process.getuid() : '1000'}/joyshockmapper.sock`;
 const ALLOWED_SOCKET_PATHS = new Set(
   (process.env.JSM_SOCKET_ALLOWLIST ?? DEFAULT_SOCKET_PATH)
-    .split(':')
+    .split('\n')
+    .flatMap((value) => value.split(';'))
     .map((value) => value.trim())
     .filter(Boolean)
 );

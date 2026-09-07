@@ -31,7 +31,7 @@ By default the server targets:
 You can override that with either:
 
 - `JSM_SOCKET_PATH=/custom/path node server.js`, or
-- `JSM_SOCKET_ALLOWLIST=/run/user/1000/joyshockmapper.sock:/some/other/jsm.sock node server.js` if you want the UI field to be allowed to switch between multiple server-approved socket paths
+- `JSM_SOCKET_ALLOWLIST="/run/user/1000/joyshockmapper.sock;/some/other/jsm.sock" node server.js` if you want the UI field to be allowed to switch between multiple server-approved socket paths
 
 The UI sends plain text JoyShockMapper commands, one per line, through a small local HTTP bridge because browsers cannot connect directly to UNIX domain sockets.
 
