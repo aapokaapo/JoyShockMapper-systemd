@@ -231,7 +231,8 @@ h2 {
   border: 1px solid var(--border);
 }
 
-#curve-svg {
+#curve-svg,
+#gyro-curve-svg {
   width: 100%;
   height: auto;
   display: block;

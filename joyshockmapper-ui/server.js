@@ -8,6 +8,12 @@ const ROOT_DIR = __dirname;
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const PORT = Number.parseInt(process.env.PORT ?? '3210', 10);
 const DEFAULT_SOCKET_PATH = process.env.JSM_SOCKET_PATH ?? `/run/user/${typeof process.getuid === 'function' ? process.getuid() : '1000'}/joyshockmapper.sock`;
+const ALLOWED_SOCKET_PATHS = new Set(
+  (process.env.JSM_SOCKET_ALLOWLIST ?? DEFAULT_SOCKET_PATH)
+    .split(':')
+    .map((value) => value.trim())
+    .filter(Boolean)
+);
 
 const CONTENT_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -29,12 +35,14 @@ function sendJson(response, statusCode, payload) {
 }
 
 function resolveSocketPath(candidate) {
-  if (typeof candidate !== 'string') {
-    return DEFAULT_SOCKET_PATH;
+  const trimmed = typeof candidate === 'string' ? candidate.trim() : '';
+  const socketPath = trimmed.length > 0 ? trimmed : DEFAULT_SOCKET_PATH;
+
+  if (!ALLOWED_SOCKET_PATHS.has(socketPath)) {
+    throw createHttpError(400, 'Socket path is not allowed by this server.');
   }
 
-  const trimmed = candidate.trim();
-  return trimmed.length > 0 ? trimmed : DEFAULT_SOCKET_PATH;
+  return socketPath;
 }
 
 async function getSocketStatus(candidate) {
@@ -234,4 +242,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`JoyShockMapper socket UI listening on http://127.0.0.1:${PORT}`);
   console.log(`Default JoyShockMapper socket: ${DEFAULT_SOCKET_PATH}`);
+  console.log(`Allowed JoyShockMapper sockets: ${Array.from(ALLOWED_SOCKET_PATHS).join(', ')}`);
 });
