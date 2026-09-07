@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JoyShockMapper Socket UI</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero card">
+        <div>
+          <p class="eyebrow">JoyShockMapper</p>
+          <h1>Socket UI</h1>
+          <p class="hero-copy">
+            Send live controller mappings and gyro tuning commands to the running JoyShockMapper user service.
+          </p>
+        </div>
+        <div class="connection-panel">
+          <label class="field">
+            <span>Socket path</span>
+            <input id="socket-path" type="text" placeholder="/run/user/1000/joyshockmapper.sock" />
+          </label>
+          <div class="actions-row">
+            <button id="check-socket" type="button">Check socket</button>
+            <span id="socket-status" class="status-pill">Unknown</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="layout-grid">
+        <article class="card controller-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Controller</p>
+              <h2>SVG button map</h2>
+            </div>
+            <span id="selected-button-chip" class="chip">Select a button</span>
+          </div>
+
+          <svg id="controller-svg" viewBox="0 0 760 420" role="img" aria-labelledby="controller-title">
+            <title id="controller-title">JoyShockMapper controller button layout</title>
+            <defs>
+              <linearGradient id="shellGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#1f2a44" />
+                <stop offset="100%" stop-color="#101826" />
+              </linearGradient>
+            </defs>
+            <path class="controller-shell" d="M142 144c28-54 77-81 147-81h181c70 0 119 27 147 81l62 121c16 32 3 72-29 89-25 14-56 9-77-12l-66-66H253l-66 66c-21 21-52 26-77 12-32-17-45-57-29-89z" />
+            <rect class="controller-core" x="270" y="118" width="220" height="132" rx="40" />
+            <circle class="controller-stick-base" cx="248" cy="244" r="53" />
+            <circle class="controller-stick-base" cx="511" cy="244" r="53" />
+            <rect class="controller-touch" x="314" y="135" width="132" height="66" rx="18" />
+            <rect class="controller-shoulder" x="180" y="95" width="116" height="25" rx="12" />
+            <rect class="controller-shoulder" x="464" y="95" width="116" height="25" rx="12" />
+            <rect class="controller-trigger" x="158" y="67" width="128" height="24" rx="12" />
+            <rect class="controller-trigger" x="474" y="67" width="128" height="24" rx="12" />
+
+            <g id="button-layer"></g>
+          </svg>
+
+          <div class="button-editor">
+            <label class="field">
+              <span>Assignment</span>
+              <input id="button-assignment" type="text" placeholder="LMOUSE, SPACE, GYRO_OFF, X_A …" />
+            </label>
+            <label class="field">
+              <span>Optional label</span>
+              <input id="button-label" type="text" placeholder="hip fire" />
+            </label>
+            <div class="actions-row">
+              <button id="apply-button-mapping" type="button">Apply mapping</button>
+              <button id="load-button-draft" type="button" class="secondary">Load draft</button>
+            </div>
+            <p class="hint">Sends commands in the form <code>BUTTON = ASSIGNMENT</code>.</p>
+          </div>
+        </article>
+
+        <div class="stacked-panels">
+          <article class="card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Motion</p>
+                <h2>Gyroscope sensitivity</h2>
+              </div>
+            </div>
+            <div class="field-grid">
+              <label class="field">
+                <span>Horizontal sensitivity</span>
+                <input id="gyro-x" type="number" min="0" step="0.1" value="2.0" />
+              </label>
+              <label class="field">
+                <span>Vertical sensitivity</span>
+                <input id="gyro-y" type="number" min="0" step="0.1" value="2.0" />
+              </label>
+            </div>
+            <div class="actions-row">
+              <button id="apply-gyro" type="button">Apply GYRO_SENS</button>
+              <span id="gyro-preview" class="inline-note">GYRO_SENS 2 2</span>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Stick tuning</p>
+                <h2>Acceleration curve</h2>
+              </div>
+            </div>
+            <div class="field-grid">
+              <label class="field">
+                <span>Acceleration rate</span>
+                <input id="acceleration-rate" type="number" min="0" step="0.1" value="1.0" />
+              </label>
+              <label class="field">
+                <span>Acceleration cap</span>
+                <input id="acceleration-cap" type="number" min="1" step="0.1" value="2.0" />
+              </label>
+            </div>
+            <div class="curve-card">
+              <svg id="curve-svg" viewBox="0 0 420 220" aria-label="Stick acceleration curve preview">
+                <rect x="0" y="0" width="420" height="220" rx="18" class="curve-background" />
+                <g id="curve-grid"></g>
+                <path id="curve-line" class="curve-line" d="" />
+                <text x="30" y="25" class="curve-label">Multiplier</text>
+                <text x="345" y="205" class="curve-label">Time (s)</text>
+              </svg>
+            </div>
+            <div class="actions-row">
+              <button id="apply-acceleration" type="button">Apply acceleration</button>
+              <span id="acceleration-preview" class="inline-note">STICK_ACCELERATION_RATE 1 · CAP 2</span>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Command socket</p>
+                <h2>Raw commands</h2>
+              </div>
+            </div>
+            <label class="field">
+              <span>Commands (one per line)</span>
+              <textarea id="raw-commands" rows="7">GYRO_SENS = 2 2
+STICK_ACCELERATION_RATE = 1
+STICK_ACCELERATION_CAP = 2</textarea>
+            </label>
+            <div class="actions-row">
+              <button id="send-raw-commands" type="button">Send commands</button>
+              <button id="insert-button-command" type="button" class="secondary">Add selected button command</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="card activity-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Activity</p>
+            <h2>Command log</h2>
+          </div>
+        </div>
+        <ul id="activity-log" class="activity-log"></ul>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
