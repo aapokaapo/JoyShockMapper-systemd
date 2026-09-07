@@ -46,6 +46,25 @@ const activityLog = document.querySelector('#activity-log');
 let selectedButton = buttonDefinitions[10];
 const buttonDrafts = new Map();
 
+function parseFiniteNumber(value, fallback) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getGyroValues() {
+  return {
+    x: Math.max(0, parseFiniteNumber(gyroXInput.value, 0)),
+    y: Math.max(0, parseFiniteNumber(gyroYInput.value, 0))
+  };
+}
+
+function getAccelerationValues() {
+  return {
+    rate: Math.max(0, parseFiniteNumber(accelerationRateInput.value, 0)),
+    cap: Math.max(1, parseFiniteNumber(accelerationCapInput.value, 1))
+  };
+}
+
 function addLogEntry(title, detail, isError = false) {
   const item = document.createElement('li');
   const strong = document.createElement('strong');
@@ -127,7 +146,9 @@ function selectButton(buttonId) {
   selectedButtonChip.textContent = `Selected: ${selectedButton.id}`;
 
   buttonLayer.querySelectorAll('.svg-button').forEach((element) => {
-    element.classList.toggle('is-selected', element.dataset.buttonId === selectedButton.id);
+    const isSelected = element.dataset.buttonId === selectedButton.id;
+    element.classList.toggle('is-selected', isSelected);
+    element.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
   });
 
   loadSelectedDraft();
@@ -143,6 +164,7 @@ function renderButtons() {
     group.setAttribute('tabindex', '0');
     group.setAttribute('focusable', 'true');
     group.setAttribute('aria-label', `Configure ${button.id}`);
+    group.setAttribute('aria-pressed', 'false');
     group.dataset.buttonId = button.id;
 
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -178,20 +200,17 @@ function loadSelectedDraft() {
 }
 
 function updateGyroPreview() {
-  const x = Number.parseFloat(gyroXInput.value || '0');
-  const y = Number.parseFloat(gyroYInput.value || '0');
+  const { x, y } = getGyroValues();
   gyroPreview.textContent = `GYRO_SENS = ${x} ${y}`;
 }
 
 function updateAccelerationPreview() {
-  const rate = Math.max(0, Number.parseFloat(accelerationRateInput.value || '0'));
-  const cap = Math.max(1, Number.parseFloat(accelerationCapInput.value || '1'));
+  const { rate, cap } = getAccelerationValues();
   accelerationPreview.textContent = `STICK_ACCELERATION_RATE = ${rate} · STICK_ACCELERATION_CAP = ${cap}`;
 }
 
 function drawCurve() {
-  const rate = Math.max(0, Number.parseFloat(accelerationRateInput.value || '0'));
-  const cap = Math.max(1, Number.parseFloat(accelerationCapInput.value || '1'));
+  const { rate, cap } = getAccelerationValues();
   const margin = { left: 38, right: 26, top: 20, bottom: 28 };
   const width = 420 - margin.left - margin.right;
   const height = 220 - margin.top - margin.bottom;
@@ -266,9 +285,10 @@ applyGyroButton.addEventListener('click', async () => {
 
 applyAccelerationButton.addEventListener('click', async () => {
   drawCurve();
+  const { rate, cap } = getAccelerationValues();
   await sendCommands([
-    `STICK_ACCELERATION_RATE = ${Math.max(0, Number.parseFloat(accelerationRateInput.value || '0'))}`,
-    `STICK_ACCELERATION_CAP = ${Math.max(1, Number.parseFloat(accelerationCapInput.value || '1'))}`
+    `STICK_ACCELERATION_RATE = ${rate}`,
+    `STICK_ACCELERATION_CAP = ${cap}`
   ], 'Updated stick acceleration');
 });
 

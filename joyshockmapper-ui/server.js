@@ -41,7 +41,28 @@ async function getSocketStatus(candidate) {
   const socketPath = resolveSocketPath(candidate);
 
   try {
-    await fsp.access(socketPath, fs.constants.R_OK | fs.constants.W_OK);
+    const stats = await fsp.stat(socketPath);
+    if (!stats.isSocket()) {
+      return { available: false, socketPath, message: 'The path exists, but it is not a UNIX socket.' };
+    }
+
+    await new Promise((resolve, reject) => {
+      const client = net.createConnection(socketPath);
+      let settled = false;
+
+      const finish = (callback, value) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        callback(value);
+      };
+
+      client.setTimeout(500, () => finish(reject, new Error('Timed out while connecting to the JoyShockMapper socket.')));
+      client.once('error', (error) => finish(reject, error));
+      client.once('connect', () => client.end(() => finish(resolve)));
+    });
+
     return { available: true, socketPath };
   } catch (error) {
     return { available: false, socketPath, message: error.message };
