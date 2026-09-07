@@ -160,7 +160,7 @@ function renderButtons() {
     group.append(circle, label);
     group.addEventListener('click', () => selectButton(button.id));
     group.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
+      if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space') {
         event.preventDefault();
         selectButton(button.id);
       }
