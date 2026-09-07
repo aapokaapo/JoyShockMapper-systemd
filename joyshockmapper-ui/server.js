@@ -58,8 +58,14 @@ async function getSocketStatus(candidate) {
         callback(value);
       };
 
-      client.setTimeout(500, () => finish(reject, new Error('Timed out while connecting to the JoyShockMapper socket.')));
-      client.once('error', (error) => finish(reject, error));
+      client.setTimeout(500, () => {
+        client.destroy();
+        finish(reject, new Error('Timed out while connecting to the JoyShockMapper socket.'));
+      });
+      client.once('error', (error) => {
+        client.destroy();
+        finish(reject, error);
+      });
       client.once('connect', () => client.end(() => finish(resolve)));
     });
 
@@ -120,7 +126,14 @@ function sendCommands(commands, socketPath) {
       callback(value);
     };
 
-    client.once('error', (error) => finish(reject, error));
+    client.setTimeout(1000, () => {
+      client.destroy();
+      finish(reject, new Error('Timed out while writing to the JoyShockMapper socket.'));
+    });
+    client.once('error', (error) => {
+      client.destroy();
+      finish(reject, error);
+    });
     client.once('connect', () => {
       client.end(`${commands.join('\n')}\n`, 'utf8', () => finish(resolve));
     });

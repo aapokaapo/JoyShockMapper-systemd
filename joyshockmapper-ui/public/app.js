@@ -51,6 +51,10 @@ function parseFiniteNumber(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function sanitizeSingleLine(value) {
+  return value.replace(/[\r\n]+/g, ' ').trim();
+}
+
 function getGyroValues() {
   return {
     x: Math.max(0, parseFiniteNumber(gyroXInput.value, 0)),
@@ -137,7 +141,8 @@ async function sendCommands(commands, title) {
 }
 
 function buildButtonCommand(buttonId, assignment, label) {
-  const suffix = label ? ` # ${label}` : '';
+  const safeLabel = sanitizeSingleLine(label);
+  const suffix = safeLabel ? ` # ${safeLabel}` : '';
   return `${buttonId} = ${assignment}${suffix}`;
 }
 
@@ -214,7 +219,8 @@ function drawCurve() {
   const margin = { left: 38, right: 26, top: 20, bottom: 28 };
   const width = 420 - margin.left - margin.right;
   const height = 220 - margin.top - margin.bottom;
-  const xMax = Math.max(3, rate > 0 ? (cap - 1) / rate : 3);
+  const timeToCap = rate > 0 ? Math.max(0, (cap - 1) / rate) : null;
+  const xMax = timeToCap === 0 ? 0.25 : timeToCap ? Math.max(0.5, timeToCap) : 1;
   const yMax = Math.max(1.1, cap + 0.25);
 
   curveGrid.innerHTML = '';
@@ -267,13 +273,14 @@ checkSocketButton.addEventListener('click', checkSocket);
 loadButtonDraftButton.addEventListener('click', loadSelectedDraft);
 applyButtonMappingButton.addEventListener('click', async () => {
   const assignment = buttonAssignmentInput.value.trim();
-  const label = buttonLabelInput.value.trim();
+  const label = sanitizeSingleLine(buttonLabelInput.value);
 
   if (!assignment) {
     addLogEntry('Button mapping skipped', 'Enter an assignment first.', true);
     return;
   }
 
+  buttonLabelInput.value = label;
   buttonDrafts.set(selectedButton.id, { assignment, label });
   await sendCommands([buildButtonCommand(selectedButton.id, assignment, label)], `Mapped ${selectedButton.id}`);
 });
@@ -303,7 +310,7 @@ sendRawCommandsButton.addEventListener('click', async () => {
 
 insertButtonCommandButton.addEventListener('click', () => {
   const assignment = buttonAssignmentInput.value.trim() || 'LMOUSE';
-  const label = buttonLabelInput.value.trim();
+  const label = sanitizeSingleLine(buttonLabelInput.value);
   const command = buildButtonCommand(selectedButton.id, assignment, label);
   rawCommandsInput.value = `${rawCommandsInput.value.trim()}\n${command}`.trim();
   addLogEntry('Draft command inserted', command);
