@@ -299,8 +299,9 @@ function drawCurve() {
   const margin = { left: 38, right: 26, top: 20, bottom: 28 };
   const width = 420 - margin.left - margin.right;
   const height = 220 - margin.top - margin.bottom;
-  const timeToCap = rate > 0 ? Math.max(0, (effectiveCap - 1) / rate) : null;
-  const xMax = timeToCap === 0 ? 0.25 : timeToCap ? Math.max(0.5, timeToCap) : 1;
+  const timeToCap = rate > 0 ? Math.max(0, (effectiveCap - 1) / rate) : 0;
+  const zeroRate = rate === 0;
+  const xMax = zeroRate ? 0.25 : timeToCap === 0 ? 0.25 : Math.max(0.5, timeToCap);
   const capIsFlat = effectiveCap <= 1;
   const yMin = capIsFlat ? 1 : 0;
   const yMax = capIsFlat ? 1.25 : Math.max(1.1, effectiveCap + 0.25);
@@ -342,7 +343,7 @@ function drawCurve() {
   const points = [];
   for (let sample = 0; sample <= 32; sample += 1) {
     const time = (xMax * sample) / 32;
-    const multiplier = Math.min(effectiveCap, 1 + rate * time);
+    const multiplier = zeroRate ? effectiveCap : Math.min(effectiveCap, 1 + rate * time);
     const x = margin.left + (time / xMax) * width;
     const y = capIsFlat
       ? margin.top

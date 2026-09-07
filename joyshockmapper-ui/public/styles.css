@@ -214,7 +214,11 @@ h2 {
   transform: translate(-50%, -50%) scale(1.03);
 }
 
-.svg-button:focus,
+.svg-button:focus {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
 .svg-button:focus-visible {
   background: rgba(104, 192, 255, 0.38);
   border-color: #ffffff;

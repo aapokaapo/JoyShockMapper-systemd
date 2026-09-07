@@ -92,6 +92,7 @@ function readJson(request) {
   return new Promise((resolve, reject) => {
     let body = '';
     let bodyBytes = 0;
+    let tooLarge = false;
     let settled = false;
 
     const finish = (callback, value) => {
@@ -103,10 +104,15 @@ function readJson(request) {
     };
 
     request.on('data', (chunk) => {
+      if (tooLarge) {
+        return;
+      }
+
       bodyBytes += chunk.length;
       if (bodyBytes > 1024 * 1024) {
-        finish(reject, createHttpError(400, 'Request body is too large.'));
-        request.destroy();
+        tooLarge = true;
+        request.pause();
+        finish(reject, createHttpError(413, 'Request body is too large.'));
         return;
       }
 
