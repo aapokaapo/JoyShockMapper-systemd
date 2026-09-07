@@ -49,7 +49,7 @@ function resolveSocketPath(candidate) {
 async function getSocketStatus(candidate) {
   try {
     const socketPath = resolveSocketPath(candidate);
-    const stats = await fsp.stat(socketPath);
+    const stats = await fsp.lstat(socketPath);
     if (!stats.isSocket()) {
       return { available: false, socketPath, message: 'The path exists, but it is not a UNIX socket.' };
     }
