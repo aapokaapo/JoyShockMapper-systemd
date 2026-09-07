@@ -136,7 +136,7 @@ async function serveStatic(requestPath, response) {
     });
     response.end(data);
   } catch (error) {
-    if (error.code === 'ENOENT') {
+    if (error.code === 'ENOENT' || error.code === 'EISDIR') {
       sendJson(response, 404, { error: 'Not found.' });
       return;
     }
@@ -180,7 +180,14 @@ async function handleApi(request, response, url) {
 }
 
 const server = http.createServer(async (request, response) => {
-  const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
+  let url;
+
+  try {
+    url = new URL(request.url ?? '/', 'http://127.0.0.1');
+  } catch (error) {
+    sendJson(response, 400, { error: 'Invalid request URL.' });
+    return;
+  }
 
   if (url.pathname.startsWith('/api/')) {
     await handleApi(request, response, url);

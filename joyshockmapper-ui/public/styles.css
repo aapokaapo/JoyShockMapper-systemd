@@ -205,10 +205,18 @@ h2 {
 }
 
 .svg-button.is-selected .hit-target,
-.svg-button:focus .hit-target,
 .svg-button:hover .hit-target {
   fill: rgba(104, 192, 255, 0.38);
   transform: scale(1.03);
+  transform-origin: center;
+}
+
+.svg-button:focus .hit-target,
+.svg-button:focus-visible .hit-target {
+  fill: rgba(104, 192, 255, 0.38);
+  stroke: #ffffff;
+  stroke-width: 5;
+  transform: scale(1.05);
   transform-origin: center;
 }
 

@@ -69,9 +69,17 @@ async function api(path, options = {}) {
     ...options
   });
 
-  const payload = await response.json();
+  const body = await response.text();
+  let payload = {};
+
+  try {
+    payload = body ? JSON.parse(body) : {};
+  } catch (error) {
+    payload = {};
+  }
+
   if (!response.ok) {
-    throw new Error(payload.detail || payload.error || 'Request failed.');
+    throw new Error(payload.detail || payload.error || body || response.statusText || 'Request failed.');
   }
   return payload;
 }
