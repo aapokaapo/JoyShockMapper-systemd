@@ -188,7 +188,7 @@ sudo udevadm trigger
 
 ## Standalone socket UI
 
-A self-contained browser UI prototype now lives in `joyshockmapper-ui/`. It uses a tiny local Node.js bridge to send JoyShockMapper commands to `/run/user/<uid>/joyshockmapper.sock`, and includes a controller SVG, button-mapping controls, gyro sensitivity inputs, and a stick acceleration curve preview.
+A self-contained browser UI prototype now lives in `joyshockmapper-ui/`. It uses a tiny local Node.js bridge to send JoyShockMapper commands to `/run/user/<uid>/joyshockmapper.sock`, and includes a controller SVG, button-mapping controls, gyro sensitivity inputs, a gyro acceleration curve editor, and a stick acceleration curve preview.
 
 ## Configuration
 

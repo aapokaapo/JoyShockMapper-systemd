@@ -32,6 +32,14 @@ const gyroXInput = document.querySelector('#gyro-x');
 const gyroYInput = document.querySelector('#gyro-y');
 const gyroPreview = document.querySelector('#gyro-preview');
 const applyGyroButton = document.querySelector('#apply-gyro');
+const gyroMinSensInput = document.querySelector('#gyro-min-sens');
+const gyroMaxSensInput = document.querySelector('#gyro-max-sens');
+const gyroMinThresholdInput = document.querySelector('#gyro-min-threshold');
+const gyroMaxThresholdInput = document.querySelector('#gyro-max-threshold');
+const gyroCurveGrid = document.querySelector('#gyro-curve-grid');
+const gyroCurveLine = document.querySelector('#gyro-curve-line');
+const gyroCurvePreview = document.querySelector('#gyro-curve-preview');
+const applyGyroCurveButton = document.querySelector('#apply-gyro-curve');
 const accelerationRateInput = document.querySelector('#acceleration-rate');
 const accelerationCapInput = document.querySelector('#acceleration-cap');
 const accelerationPreview = document.querySelector('#acceleration-preview');
@@ -66,6 +74,20 @@ function getAccelerationValues() {
   return {
     rate: Math.max(0, parseFiniteNumber(accelerationRateInput.value, 0)),
     cap: Math.max(1, parseFiniteNumber(accelerationCapInput.value, 1))
+  };
+}
+
+function getGyroCurveValues() {
+  const minSens = Math.max(0, parseFiniteNumber(gyroMinSensInput.value, 0));
+  const maxSensRaw = Math.max(0, parseFiniteNumber(gyroMaxSensInput.value, minSens));
+  const minThreshold = Math.max(0, parseFiniteNumber(gyroMinThresholdInput.value, 0));
+  const maxThresholdRaw = Math.max(0, parseFiniteNumber(gyroMaxThresholdInput.value, minThreshold));
+
+  return {
+    minSens,
+    maxSens: Math.max(minSens, maxSensRaw),
+    minThreshold,
+    maxThreshold: Math.max(minThreshold, maxThresholdRaw)
   };
 }
 
@@ -214,6 +236,77 @@ function updateAccelerationPreview() {
   accelerationPreview.textContent = `STICK_ACCELERATION_RATE = ${rate} · STICK_ACCELERATION_CAP = ${cap}`;
 }
 
+function updateGyroCurvePreview() {
+  const { minSens, maxSens, minThreshold, maxThreshold } = getGyroCurveValues();
+  gyroCurvePreview.textContent = `MIN_GYRO_SENS = ${minSens} · MAX_GYRO_SENS = ${maxSens} · MIN_GYRO_THRESHOLD = ${minThreshold} · MAX_GYRO_THRESHOLD = ${maxThreshold}`;
+}
+
+function drawGyroCurve() {
+  const { minSens, maxSens, minThreshold, maxThreshold } = getGyroCurveValues();
+  const margin = { left: 38, right: 26, top: 20, bottom: 28 };
+  const width = 420 - margin.left - margin.right;
+  const height = 220 - margin.top - margin.bottom;
+  const xMax = Math.max(1, maxThreshold || 1);
+  const yMax = Math.max(1, maxSens, minSens) + 0.5;
+
+  gyroCurveGrid.innerHTML = '';
+  for (let tick = 0; tick <= 4; tick += 1) {
+    const y = margin.top + (height * tick) / 4;
+    const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    gridLine.setAttribute('x1', String(margin.left));
+    gridLine.setAttribute('x2', String(margin.left + width));
+    gridLine.setAttribute('y1', String(y));
+    gridLine.setAttribute('y2', String(y));
+    gyroCurveGrid.append(gridLine);
+
+    const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    yLabel.setAttribute('x', '8');
+    yLabel.setAttribute('y', String(y + 4));
+    yLabel.textContent = (yMax - ((yMax - 0) * tick) / 4).toFixed(1);
+    gyroCurveGrid.append(yLabel);
+  }
+
+  for (let tick = 0; tick <= 4; tick += 1) {
+    const x = margin.left + (width * tick) / 4;
+    const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    gridLine.setAttribute('x1', String(x));
+    gridLine.setAttribute('x2', String(x));
+    gridLine.setAttribute('y1', String(margin.top));
+    gridLine.setAttribute('y2', String(margin.top + height));
+    gyroCurveGrid.append(gridLine);
+
+    const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    xLabel.setAttribute('x', String(x - 10));
+    xLabel.setAttribute('y', '208');
+    xLabel.textContent = ((xMax * tick) / 4).toFixed(1);
+    gyroCurveGrid.append(xLabel);
+  }
+
+  const sensitivityAt = (velocity) => {
+    if (velocity <= minThreshold || maxThreshold === minThreshold) {
+      return minSens;
+    }
+    if (velocity >= maxThreshold) {
+      return maxSens;
+    }
+
+    const progress = (velocity - minThreshold) / (maxThreshold - minThreshold);
+    return minSens + (maxSens - minSens) * progress;
+  };
+
+  const points = [];
+  for (let sample = 0; sample <= 32; sample += 1) {
+    const velocity = (xMax * sample) / 32;
+    const sensitivity = sensitivityAt(velocity);
+    const x = margin.left + (velocity / xMax) * width;
+    const y = margin.top + height - (sensitivity / yMax) * height;
+    points.push(`${sample === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`);
+  }
+
+  gyroCurveLine.setAttribute('d', points.join(' '));
+  updateGyroCurvePreview();
+}
+
 function drawCurve() {
   const { rate, cap } = getAccelerationValues();
   const margin = { left: 38, right: 26, top: 20, bottom: 28 };
@@ -290,6 +383,17 @@ applyGyroButton.addEventListener('click', async () => {
   await sendCommands([gyroPreview.textContent], 'Updated gyro sensitivity');
 });
 
+applyGyroCurveButton.addEventListener('click', async () => {
+  drawGyroCurve();
+  const { minSens, maxSens, minThreshold, maxThreshold } = getGyroCurveValues();
+  await sendCommands([
+    `MIN_GYRO_SENS = ${minSens}`,
+    `MAX_GYRO_SENS = ${maxSens}`,
+    `MIN_GYRO_THRESHOLD = ${minThreshold}`,
+    `MAX_GYRO_THRESHOLD = ${maxThreshold}`
+  ], 'Updated gyro acceleration curve');
+});
+
 applyAccelerationButton.addEventListener('click', async () => {
   drawCurve();
   const { rate, cap } = getAccelerationValues();
@@ -318,10 +422,15 @@ insertButtonCommandButton.addEventListener('click', () => {
 
 gyroXInput.addEventListener('input', updateGyroPreview);
 gyroYInput.addEventListener('input', updateGyroPreview);
+gyroMinSensInput.addEventListener('input', drawGyroCurve);
+gyroMaxSensInput.addEventListener('input', drawGyroCurve);
+gyroMinThresholdInput.addEventListener('input', drawGyroCurve);
+gyroMaxThresholdInput.addEventListener('input', drawGyroCurve);
 accelerationRateInput.addEventListener('input', drawCurve);
 accelerationCapInput.addEventListener('input', drawCurve);
 
 renderButtons();
 updateGyroPreview();
+drawGyroCurve();
 drawCurve();
 checkSocket();

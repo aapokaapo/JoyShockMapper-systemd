@@ -7,6 +7,7 @@ This folder is a self-contained UI project for talking to the running `joyshockm
 - controller SVG with clickable JoyShockMapper button IDs
 - per-button mapping composer that sends `BUTTON = ASSIGNMENT` commands
 - gyro sensitivity editor that sends `GYRO_SENS = X Y`
+- gyro acceleration curve editor for `MIN_GYRO_SENS`, `MAX_GYRO_SENS`, `MIN_GYRO_THRESHOLD`, and `MAX_GYRO_THRESHOLD`
 - stick acceleration controls with a live SVG preview for `STICK_ACCELERATION_RATE` and `STICK_ACCELERATION_CAP`
 - raw command panel for sending any newline-delimited JoyShockMapper commands
 
@@ -39,6 +40,10 @@ The UI sends plain text JoyShockMapper commands, one per line, through a small l
 ```text
 E = LMOUSE
 GYRO_SENS = 2 2
+MIN_GYRO_SENS = 1
+MAX_GYRO_SENS = 4
+MIN_GYRO_THRESHOLD = 0
+MAX_GYRO_THRESHOLD = 75
 STICK_ACCELERATION_RATE = 1
 STICK_ACCELERATION_CAP = 2
 ```
