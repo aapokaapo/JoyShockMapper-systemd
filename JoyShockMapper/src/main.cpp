@@ -49,14 +49,42 @@ unique_ptr<PollingThread> minimizeThread;
 bool devicesCalibrating = false;
 std::atomic<bool> g_headless = false;
 unordered_map<int, shared_ptr<JoyShock>> handle_to_joyshock;
+mutex handle_to_joyshock_lock;
 
 int input_pipe_fd[2];
 int triggerCalibrationStep = 0;
 
 static shared_ptr<JoyShock> findJoyShock(int handle)
 {
+	lock_guard guard(handle_to_joyshock_lock);
 	auto found = handle_to_joyshock.find(handle);
 	return found != handle_to_joyshock.end() ? found->second : nullptr;
+}
+
+static vector<shared_ptr<JoyShock>> copyJoyShocks()
+{
+	lock_guard guard(handle_to_joyshock_lock);
+	vector<shared_ptr<JoyShock>> joyShocks;
+	joyShocks.reserve(handle_to_joyshock.size());
+	for (const auto &[_, joyShock] : handle_to_joyshock)
+	{
+		if (joyShock)
+			joyShocks.push_back(joyShock);
+	}
+	return joyShocks;
+}
+
+static vector<int> copyJoyShockHandles()
+{
+	lock_guard guard(handle_to_joyshock_lock);
+	vector<int> handles;
+	handles.reserve(handle_to_joyshock.size());
+	for (const auto &[handle, joyShock] : handle_to_joyshock)
+	{
+		if (joyShock)
+			handles.push_back(handle);
+	}
+	return handles;
 }
 
 struct TOUCH_POINT
@@ -1113,9 +1141,9 @@ void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE l
 	                               {
 		                               return pair.first == ButtonID::MIC;
 	                               }) != jc->_context->activeTogglesQueue.cend();
-	for (auto controller : handle_to_joyshock)
+	for (auto handle : copyJoyShockHandles())
 	{
-		jsl->SetMicLight(controller.first, currentMicToggleState ? 1 : 0);
+		jsl->SetMicLight(handle, currentMicToggleState ? 1 : 0);
 	}
 
 	GyroOutput gyroOutput = jc->getSetting<GyroOutput>(SettingID::GYRO_OUTPUT);
@@ -1170,17 +1198,12 @@ void connectDevices(bool mergeJoycons = true)
 #ifdef __linux__
 	vector<unique_ptr<Gamepad>> preservedVirtualControllers;
 	size_t nextPreservedVirtualController = 0;
-	vector<int> oldHandles;
-	oldHandles.reserve(handle_to_joyshock.size());
-	for (const auto &[handle, _] : handle_to_joyshock)
-	{
-		oldHandles.push_back(handle);
-	}
+	vector<int> oldHandles = copyJoyShockHandles();
 	sort(oldHandles.begin(), oldHandles.end());
 	set<DigitalButton::Context *> preservedContexts;
 	for (int handle : oldHandles)
 	{
-		auto &js = handle_to_joyshock.at(handle);
+		auto js = findJoyShock(handle);
 		if (!js || !js->_context || !js->_context->_vigemController)
 			continue;
 
@@ -1193,7 +1216,10 @@ void connectDevices(bool mergeJoycons = true)
 		preservedVirtualControllers.push_back(std::move(js->_context->_vigemController));
 	}
 #endif
-	handle_to_joyshock.clear();
+	{
+		lock_guard guard(handle_to_joyshock_lock);
+		handle_to_joyshock.clear();
+	}
 	this_thread::sleep_for(100ms);
 	int numConnected = jsl->ConnectDevices();
 	vector<int> deviceHandles(numConnected, 0);
@@ -1210,13 +1236,20 @@ void connectDevices(bool mergeJoycons = true)
 		for (auto handle : deviceHandles) // Don't use foreach!
 		{
 			auto type = jsl->GetControllerSplitType(handle);
-			auto otherJoyCon = find_if(handle_to_joyshock.begin(), handle_to_joyshock.end(),
-			  [type](auto &pair)
-			  {
-				  return type == JS_SPLIT_TYPE_LEFT && pair.second->_splitType == JS_SPLIT_TYPE_RIGHT ||
-				    type == JS_SPLIT_TYPE_RIGHT && pair.second->_splitType == JS_SPLIT_TYPE_LEFT;
-			  });
-			if (mergeJoycons && otherJoyCon != handle_to_joyshock.end())
+			shared_ptr<DigitalButton::Context> otherContext = nullptr;
+			{
+				lock_guard guard(handle_to_joyshock_lock);
+				auto otherJoyCon = find_if(handle_to_joyshock.begin(), handle_to_joyshock.end(),
+				  [type](auto &pair)
+				  {
+					  return pair.second &&
+					    (type == JS_SPLIT_TYPE_LEFT && pair.second->_splitType == JS_SPLIT_TYPE_RIGHT ||
+					      type == JS_SPLIT_TYPE_RIGHT && pair.second->_splitType == JS_SPLIT_TYPE_LEFT);
+				  });
+				if (otherJoyCon != handle_to_joyshock.end())
+					otherContext = otherJoyCon->second->_context;
+			}
+			if (mergeJoycons && otherContext)
 			{
 				// The second JC points to the same common _buttons as the other one.
 				COUT << "Found a joycon pair!\n";
@@ -1226,18 +1259,21 @@ void connectDevices(bool mergeJoycons = true)
 				if (tray)
 					tray->SendNotification("Found a joycon pair!");
 #endif
-				handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type, otherJoyCon->second->_context);
+				lock_guard guard(handle_to_joyshock_lock);
+				handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type, otherContext);
 			}
 			else
 			{
 #ifdef __linux__
 				if (nextPreservedVirtualController < preservedVirtualControllers.size())
 				{
+					lock_guard guard(handle_to_joyshock_lock);
 					handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type, nullptr, std::move(preservedVirtualControllers[nextPreservedVirtualController++]));
 				}
 				else
 #endif
 				{
+					lock_guard guard(handle_to_joyshock_lock);
 					handle_to_joyshock[handle] = make_shared<JoyShock>(handle, type);
 				}
 			}
@@ -1446,10 +1482,9 @@ bool do_CALCULATE_REAL_WORLD_CALIBRATION(string_view argument)
 bool do_FINISH_GYRO_CALIBRATION()
 {
 	COUT << "Finishing continuous calibration for all devices\n";
-	for (auto iter = handle_to_joyshock.begin(); iter != handle_to_joyshock.end(); ++iter)
+	for (const auto &joyShock : copyJoyShocks())
 	{
-		if (iter->second)
-			iter->second->_motion->PauseContinuousCalibration();
+		joyShock->_motion->PauseContinuousCalibration();
 	}
 	devicesCalibrating = false;
 	return true;
@@ -1458,13 +1493,10 @@ bool do_FINISH_GYRO_CALIBRATION()
 bool do_RESTART_GYRO_CALIBRATION()
 {
 	COUT << "Restarting continuous calibration for all devices\n";
-	for (auto iter = handle_to_joyshock.begin(); iter != handle_to_joyshock.end(); ++iter)
+	for (const auto &joyShock : copyJoyShocks())
 	{
-		if (iter->second)
-		{
-			iter->second->_motion->ResetContinuousCalibration();
-			iter->second->_motion->StartContinuousCalibration();
-		}
+		joyShock->_motion->ResetContinuousCalibration();
+		joyShock->_motion->StartContinuousCalibration();
 	}
 	devicesCalibrating = true;
 	return true;
@@ -1473,10 +1505,9 @@ bool do_RESTART_GYRO_CALIBRATION()
 bool do_SET_MOTION_STICK_NEUTRAL()
 {
 	COUT << "Setting neutral motion stick orientation...\n";
-	for (auto iter = handle_to_joyshock.begin(); iter != handle_to_joyshock.end(); ++iter)
+	for (const auto &joyShock : copyJoyShocks())
 	{
-		if (iter->second)
-			iter->second->set_neutral_quat = true;
+		joyShock->set_neutral_quat = true;
 	}
 	return true;
 }
@@ -1710,7 +1741,10 @@ void cleanUp()
 	}
 	HideConsole();
 	jsl->DisconnectAndDisposeAll();
-	handle_to_joyshock.clear(); // Destroy Vigem Gamepads
+	{
+		lock_guard guard(handle_to_joyshock_lock);
+		handle_to_joyshock.clear(); // Destroy Vigem Gamepads
+	}
 	ReleaseConsole();
 }
 
@@ -1794,9 +1828,9 @@ Mapping filterMapping(Mapping current, Mapping next)
 			COUT_WARN << "Before using this mapping, you need to set VIRTUAL_CONTROLLER.\n";
 			return current;
 		}
-		for (auto &js : handle_to_joyshock)
+		for (const auto &js : copyJoyShocks())
 		{
-			if (js.second->hasVirtualController() == false)
+			if (js->hasVirtualController() == false)
 				return current;
 		}
 	}
@@ -1824,9 +1858,9 @@ TriggerMode filterTriggerMode(TriggerMode current, TriggerMode next)
 			COUT_WARN << "Before using this trigger mode, you need to set VIRTUAL_CONTROLLER.\n";
 			return current;
 		}
-		for (auto &js : handle_to_joyshock)
+		for (const auto &js : copyJoyShocks())
 		{
-			if (js.second->hasVirtualController() == false)
+			if (js->hasVirtualController() == false)
 				return current;
 		}
 	}
@@ -1853,9 +1887,9 @@ StickMode filterMotionStickMode(StickMode current, StickMode next)
 			COUT_WARN << "Before using this stick mode, you need to set VIRTUAL_CONTROLLER.\n";
 			return current;
 		}
-		for (auto &js : handle_to_joyshock)
+		for (const auto &js : copyJoyShocks())
 		{
-			if (js.second->hasVirtualController() == false)
+			if (js->hasVirtualController() == false)
 				return current;
 		}
 	}
@@ -1889,9 +1923,9 @@ GyroOutput filterGyroOutput(GyroOutput current, GyroOutput next)
 			COUT_WARN << "Before using this gyro mode, you need to set VIRTUAL_CONTROLLER.\n";
 			return current;
 		}
-		for (auto &js : handle_to_joyshock)
+		for (const auto &js : copyJoyShocks())
 		{
-			if (js.second->hasVirtualController() == false)
+			if (js->hasVirtualController() == false)
 				return current;
 		}
 	}
@@ -1914,20 +1948,20 @@ ControllerScheme updateVirtualController(ControllerScheme prevScheme, Controller
 {
 	string error;
 	bool success = true;
-	for (auto &js : handle_to_joyshock)
+	for (const auto &js : copyJoyShocks())
 	{
-		lock_guard guard(js.second->_context->callback_lock);
-		if (!js.second->_context->_vigemController ||
-		  js.second->_context->_vigemController->getType() != nextScheme)
+		lock_guard guard(js->_context->callback_lock);
+		if (!js->_context->_vigemController ||
+		  js->_context->_vigemController->getType() != nextScheme)
 		{
 			if (nextScheme == ControllerScheme::NONE)
 			{
-				js.second->_context->_vigemController.reset(nullptr);
+				js->_context->_vigemController.reset(nullptr);
 			}
 			else
 			{
-				js.second->_context->_vigemController.reset(Gamepad::getNew(nextScheme, bind(&JoyShock::onVirtualControllerNotification, js.second.get(), placeholders::_1, placeholders::_2, placeholders::_3)));
-				success &= js.second->_context->_vigemController && js.second->_context->_vigemController->isInitialized(&error);
+				js->_context->_vigemController.reset(Gamepad::getNew(nextScheme, bind(&JoyShock::onVirtualControllerNotification, js.get(), placeholders::_1, placeholders::_2, placeholders::_3)));
+				success &= js->_context->_vigemController && js->_context->_vigemController->isInitialized(&error);
 				if (!error.empty())
 				{
 					CERR << error << '\n';
@@ -1935,7 +1969,7 @@ ControllerScheme updateVirtualController(ControllerScheme prevScheme, Controller
 				}
 				if (!success)
 				{
-					js.second->_context->_vigemController.release();
+					js->_context->_vigemController.release();
 					break;
 				}
 			}
@@ -1971,11 +2005,11 @@ ControllerScheme updateVirtualController(ControllerScheme prevScheme, Controller
 
 void onVirtualControllerChange(const ControllerScheme &newScheme)
 {
-	for (auto &js : handle_to_joyshock)
+	for (const auto &js : copyJoyShocks())
 	{
 		// Display an error message if any vigem is no good.
-		lock_guard guard(js.second->_context->callback_lock);
-		if (!js.second->hasVirtualController())
+		lock_guard guard(js->_context->callback_lock);
+		if (!js->hasVirtualController())
 		{
 			break;
 		}
@@ -2007,10 +2041,10 @@ void onNewGridDimensions(CmdRegistry *registry, const FloatXY &newGridDims)
 		}
 
 		// For all joyshocks, remove extra touch DigitalButtons
-		for (auto &js : handle_to_joyshock)
+		for (const auto &js : copyJoyShocks())
 		{
-			lock_guard guard(js.second->_context->callback_lock);
-			js.second->updateGridSize();
+			lock_guard guard(js->_context->callback_lock);
+			js->updateGridSize();
 		}
 
 		// Remove extra touch button variables
@@ -2029,10 +2063,10 @@ void onNewGridDimensions(CmdRegistry *registry, const FloatXY &newGridDims)
 		}
 
 		// For all joyshocks, remove extra touch DigitalButtons
-		for (auto &js : handle_to_joyshock)
+		for (const auto &js : copyJoyShocks())
 		{
-			lock_guard guard(js.second->_context->callback_lock);
-			js.second->updateGridSize();
+			lock_guard guard(js->_context->callback_lock);
+			js->updateGridSize();
 		}
 	}
 	// Else numbers are the same, possibly just reconfigured
