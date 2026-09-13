@@ -63,14 +63,27 @@ CmdRegistry::CmdRegistry()
 bool CmdRegistry::loadConfigFile(string fileName)
 {
 	// https://stackoverflow.com/questions/2602013/read-whole-ascii-file-into-c-stdstring
+	if (fileName.empty())
+	{
+		return false;
+	}
 	auto comment = fileName.find_first_of('#');
 	if (comment != string::npos)
 	{
-		fileName = fileName.substr(0, comment - 1);
+		fileName = fileName.substr(0, comment);
+	}
+	fileName = string(strtrim(fileName));
+	if (fileName.empty())
+	{
+		return false;
 	}
 	// Trim away quotation marks from drag and drop
-	if (*fileName.begin() == '\"' && *(fileName.end() - 1) == '\"')
+	if (fileName.size() >= 2 && fileName.front() == '\"' && fileName.back() == '\"')
 		fileName = fileName.substr(1, fileName.size() - 2);
+	if (fileName.empty())
+	{
+		return false;
+	}
 
 	ifstream file(fileName);
 	if (!file.is_open())

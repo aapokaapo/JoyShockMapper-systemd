@@ -136,9 +136,9 @@ using TrayIconData = HINSTANCE;
 using UnicodeString = std::wstring;
 
 // Current Working Directory can now be changed: these need to be dynamic
-extern const char *AUTOLOAD_FOLDER();
-extern const char *GYRO_CONFIGS_FOLDER();
-extern const char *BASE_JSM_CONFIG_FOLDER();
+extern std::string AUTOLOAD_FOLDER();
+extern std::string GYRO_CONFIGS_FOLDER();
+extern std::string BASE_JSM_CONFIG_FOLDER();
 extern std::string NONAME;
 
 #elif defined(__linux__)
@@ -234,9 +234,9 @@ using TrayIconData = void *;
 using UnicodeString = std::string;
 
 // Current Working Directory can now be changed: these need to be dynamic
-extern const char *AUTOLOAD_FOLDER();
-extern const char *GYRO_CONFIGS_FOLDER();
-extern const char *BASE_JSM_CONFIG_FOLDER();
+extern std::string AUTOLOAD_FOLDER();
+extern std::string GYRO_CONFIGS_FOLDER();
+extern std::string BASE_JSM_CONFIG_FOLDER();
 
 extern unsigned long GetCurrentProcessId();
 
