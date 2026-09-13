@@ -47,30 +47,25 @@ streambuf *Log::makeBuffer(Level level)
 	}
 }
 
-namespace
-{
-thread_local std::string configPathBuffer;
-
-const char *setConfigPath(std::string path)
-{
-	configPathBuffer = std::move(path);
-	return configPathBuffer.c_str();
-}
-}
-
 const char *AUTOLOAD_FOLDER()
 {
-	return setConfigPath(GetCWD() + "\\AutoLoad\\");
+	thread_local std::string autoloadFolder;
+	autoloadFolder = GetCWD() + "\\AutoLoad\\";
+	return autoloadFolder.c_str();
 }
 
 const char *GYRO_CONFIGS_FOLDER()
 {
-	return setConfigPath(GetCWD() + "\\GyroConfigs\\");
+	thread_local std::string gyroConfigsFolder;
+	gyroConfigsFolder = GetCWD() + "\\GyroConfigs\\";
+	return gyroConfigsFolder.c_str();
 }
 
 const char *BASE_JSM_CONFIG_FOLDER()
 {
-	return setConfigPath(GetCWD() + "\\");
+	thread_local std::string baseConfigFolder;
+	baseConfigFolder = GetCWD() + "\\";
+	return baseConfigFolder.c_str();
 }
 
 std::ostream &operator<<(std::ostream &out, const KeyCode &code)

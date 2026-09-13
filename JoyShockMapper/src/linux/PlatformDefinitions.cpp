@@ -57,18 +57,8 @@ streambuf *Log::makeBuffer(Level level)
 	}
 }
 
-namespace
-{
-thread_local std::string configPathBuffer;
-
-const char *setConfigPath(std::string path)
-{
-	configPathBuffer = std::move(path);
-	return configPathBuffer.c_str();
-}
-}
-
 const char *AUTOLOAD_FOLDER() {
+	thread_local std::string autoloadFolder;
 	std::string directory;
 
 	const auto XDG_CONFIG_HOME = getenv("XDG_CONFIG_HOME");
@@ -84,10 +74,12 @@ const char *AUTOLOAD_FOLDER() {
 	}
 
 	directory = directory + "/JoyShockMapper/AutoLoad/";
-	return setConfigPath(std::move(directory));
+	autoloadFolder = std::move(directory);
+	return autoloadFolder.c_str();
 };
 
 const char *GYRO_CONFIGS_FOLDER() {
+	thread_local std::string gyroConfigsFolder;
 	std::string directory;
 
 	const auto XDG_CONFIG_HOME = getenv("XDG_CONFIG_HOME");
@@ -103,10 +95,12 @@ const char *GYRO_CONFIGS_FOLDER() {
 	}
 
 	directory = directory + "/JoyShockMapper/GyroConfigs/";
-	return setConfigPath(std::move(directory));
+	gyroConfigsFolder = std::move(directory);
+	return gyroConfigsFolder.c_str();
 };
 
 const char *BASE_JSM_CONFIG_FOLDER() {
+	thread_local std::string baseConfigFolder;
 	std::string directory;
 
 	const auto XDG_CONFIG_HOME = getenv("XDG_CONFIG_HOME");
@@ -122,7 +116,8 @@ const char *BASE_JSM_CONFIG_FOLDER() {
 	}
 
 	directory = directory + "/JoyShockMapper/";
-	return setConfigPath(std::move(directory));
+	baseConfigFolder = std::move(directory);
+	return baseConfigFolder.c_str();
 };
 
 unsigned long GetCurrentProcessId()
