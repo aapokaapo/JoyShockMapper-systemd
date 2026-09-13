@@ -57,6 +57,17 @@ streambuf *Log::makeBuffer(Level level)
 	}
 }
 
+namespace
+{
+thread_local std::string configPathBuffer;
+
+const char *setConfigPath(std::string path)
+{
+	configPathBuffer = std::move(path);
+	return configPathBuffer.c_str();
+}
+}
+
 const char *AUTOLOAD_FOLDER() {
 	std::string directory;
 
@@ -73,7 +84,7 @@ const char *AUTOLOAD_FOLDER() {
 	}
 
 	directory = directory + "/JoyShockMapper/AutoLoad/";
-	return strdup(directory.c_str());
+	return setConfigPath(std::move(directory));
 };
 
 const char *GYRO_CONFIGS_FOLDER() {
@@ -92,7 +103,7 @@ const char *GYRO_CONFIGS_FOLDER() {
 	}
 
 	directory = directory + "/JoyShockMapper/GyroConfigs/";
-	return strdup(directory.c_str());
+	return setConfigPath(std::move(directory));
 };
 
 const char *BASE_JSM_CONFIG_FOLDER() {
@@ -111,7 +122,7 @@ const char *BASE_JSM_CONFIG_FOLDER() {
 	}
 
 	directory = directory + "/JoyShockMapper/";
-	return strdup(directory.c_str());
+	return setConfigPath(std::move(directory));
 };
 
 unsigned long GetCurrentProcessId()

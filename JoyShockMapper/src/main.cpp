@@ -53,6 +53,12 @@ unordered_map<int, shared_ptr<JoyShock>> handle_to_joyshock;
 int input_pipe_fd[2];
 int triggerCalibrationStep = 0;
 
+static shared_ptr<JoyShock> findJoyShock(int handle)
+{
+	auto found = handle_to_joyshock.find(handle);
+	return found != handle_to_joyshock.end() ? found->second : nullptr;
+}
+
 struct TOUCH_POINT
 {
 	TOUCH_POINT() = default;
@@ -114,7 +120,7 @@ void touchCallback(int jcHandle, TOUCH_STATE newState, TOUCH_STATE prevState, fl
 	//	  prevState.t1Down ? optional<FloatXY>({ prevState.t1X, prevState.t1Y }) : nullopt);
 	//}
 
-	shared_ptr<JoyShock> js = handle_to_joyshock[jcHandle];
+	shared_ptr<JoyShock> js = findJoyShock(jcHandle);
 	int tpSizeX, tpSizeY;
 	if (!js || jsl->GetTouchpadDimension(jcHandle, tpSizeX, tpSizeY) == false)
 		return;
@@ -355,7 +361,7 @@ void calibrateTriggers(shared_ptr<JoyShock> jc)
 void joyShockPollCallback(int jcHandle, JOY_SHOCK_STATE state, JOY_SHOCK_STATE lastState, IMU_STATE imuState, IMU_STATE lastImuState, float deltaTime)
 {
 
-	const auto& jc = handle_to_joyshock[jcHandle];
+	const auto jc = findJoyShock(jcHandle);
 	if (jc == nullptr)
 		return;
 	jc->_context->callback_lock.lock();
@@ -1442,7 +1448,8 @@ bool do_FINISH_GYRO_CALIBRATION()
 	COUT << "Finishing continuous calibration for all devices\n";
 	for (auto iter = handle_to_joyshock.begin(); iter != handle_to_joyshock.end(); ++iter)
 	{
-		iter->second->_motion->PauseContinuousCalibration();
+		if (iter->second)
+			iter->second->_motion->PauseContinuousCalibration();
 	}
 	devicesCalibrating = false;
 	return true;
@@ -1453,8 +1460,11 @@ bool do_RESTART_GYRO_CALIBRATION()
 	COUT << "Restarting continuous calibration for all devices\n";
 	for (auto iter = handle_to_joyshock.begin(); iter != handle_to_joyshock.end(); ++iter)
 	{
-		iter->second->_motion->ResetContinuousCalibration();
-		iter->second->_motion->StartContinuousCalibration();
+		if (iter->second)
+		{
+			iter->second->_motion->ResetContinuousCalibration();
+			iter->second->_motion->StartContinuousCalibration();
+		}
 	}
 	devicesCalibrating = true;
 	return true;
@@ -1465,7 +1475,8 @@ bool do_SET_MOTION_STICK_NEUTRAL()
 	COUT << "Setting neutral motion stick orientation...\n";
 	for (auto iter = handle_to_joyshock.begin(); iter != handle_to_joyshock.end(); ++iter)
 	{
-		iter->second->set_neutral_quat = true;
+		if (iter->second)
+			iter->second->set_neutral_quat = true;
 	}
 	return true;
 }
